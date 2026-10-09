@@ -1,0 +1,186 @@
+<!-- FOUC prevention: apply saved theme before paint -->
+<script>
+(function(){
+    var t=sessionStorage.getItem('mi_theme')||'light';
+    if(t==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    document.documentElement.setAttribute('data-theme',t);
+    sessionStorage.removeItem('mi_color_scheme');
+})();
+</script>
+<style>
+    /* MongoDB Design System - Colors */
+    :root {
+        --mongodb-green-dark2: #00684A;
+        --mongodb-green-dark1: #00A35C;
+        --mongodb-green-base: #00ED64;
+        --mongodb-green-light1: #71F6BA;
+        --mongodb-green-light2: #C0FAE6;
+        --mongodb-green-light3: #E3FCF7;
+        --mongodb-green-interactive: #00593F;
+        --mongodb-blue-base: #016BF8;
+        --mongodb-blue-light1: #0498EC;
+        --mongodb-blue-light2: #C3E7FE;
+        --mongodb-red-base: #DB3030;
+        --mongodb-red-light1: #FF6960;
+        --mongodb-red-light3: #FFEAE5;
+        --mongodb-yellow-base: #FFC010;
+        --mongodb-gray-dark3: #112733;
+        --mongodb-gray-dark2: #3D4F58;
+        --mongodb-gray-base: #889397;
+        --mongodb-gray-light1: #C1C7C6;
+        --mongodb-gray-light2: #E8EDEB;
+        --mongodb-gray-light3: #F9FBFA;
+        --mongodb-black: #001E2B;
+        --mongodb-white: #FFFFFF;
+
+        --mi-font-ui: 'Euclid Circular A', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        --mi-radius-sm: 8px;
+        --mi-radius-md: 12px;
+        --mi-shadow-sm: 0 2px 8px rgba(0, 30, 43, 0.08);
+        --mi-shadow-md: 0 6px 16px rgba(0, 30, 43, 0.12);
+
+        --mi-sidebar-bg: #00684A;
+        --mi-dashboard-bg: #F4F6F8;
+        --mi-frame-bg: #FFFFFF;
+        --mi-frame-header-bg: #EAF0F2;
+        --mi-frame-border: #D9E0E3;
+        --mi-text-primary: #1F2937;
+        --mi-text-secondary: #415058;
+        --mi-dialog-bg: #FFFFFF;
+        --mi-surface-muted: #F6F9FA;
+        --mi-sidebar-btn-bg: rgba(255, 255, 255, 0.14);
+        --mi-sidebar-btn-hover: rgba(255, 255, 255, 0.26);
+        --mi-sidebar-btn-active: rgba(255, 255, 255, 0.32);
+        --mi-focus-ring: rgba(1, 107, 248, 0.3);
+        --mi-accent-success: #00ED64;
+        --mi-accent-warning: #FFC010;
+        --mi-accent-info: #016BF8;
+        --mi-accent-danger: #DB3030;
+        --mi-accent: var(--mi-accent-success);
+
+        --mi-tab-bg: #C0FAE6;
+        --mi-warning-bg: #FFF8E1;
+        --mi-warning-border: #FFC010;
+        --mi-warning-text: #664D03;
+        --mi-error-banner-bg: #FFEAE5;
+
+        /* Live monitor (Atlas-style, scoped to .lm-* CSS) */
+        --lm-page-bg: #F9FBFA;
+        --lm-card-bg: #FFFFFF;
+        --lm-card-border: #E8EDEB;
+        --lm-card-radius: 12px;
+        --lm-card-shadow: 0 4px 14px -2px rgba(0, 8, 16, 0.08);
+        --lm-text-primary: #001E2B;
+        --lm-text-secondary: #5C6C75;
+        --lm-progress-track: #E8EDEB;
+        --lm-progress-fill-start: #00A35C;
+        --lm-progress-fill-end: #00ED64;
+        --lm-node-bg: #F9FBFA;
+        --lm-table-row-hover: #F9FBFA;
+        --lm-link: #016BF8;
+        --lm-banner-info-text: #0c3b6b;
+
+    }
+
+    /* Dark theme overrides */
+    [data-theme="dark"] {
+        --mi-sidebar-bg: #00593F;
+        --mi-dashboard-bg: #0D1F26;
+        --mi-frame-bg: #132C37;
+        --mi-frame-header-bg: #1A3642;
+        --mi-frame-border: #36505B;
+        --mi-text-primary: #F9FBFA;
+        --mi-text-secondary: #C1C7C6;
+        --mi-dialog-bg: #132C37;
+        --mi-surface-muted: #1A3642;
+        --mi-sidebar-btn-bg: rgba(255, 255, 255, 0.1);
+        --mi-sidebar-btn-hover: rgba(255, 255, 255, 0.18);
+        --mi-sidebar-btn-active: rgba(255, 255, 255, 0.24);
+        --mi-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.25);
+        --mi-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+        --mi-tab-bg: #1A3642;
+        --mi-warning-bg: rgba(255, 192, 16, 0.15);
+        --mi-warning-border: #FFC010;
+        --mi-warning-text: #FFC010;
+        --mi-error-banner-bg: rgba(219, 48, 48, 0.15);
+
+        --lm-page-bg: #001E2B;
+        --lm-card-bg: #132C37;
+        --lm-card-border: #36505B;
+        --lm-card-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.35);
+        --lm-text-primary: #F9FBFA;
+        --lm-text-secondary: #C1C7C6;
+        --lm-progress-track: #36505B;
+        --lm-progress-fill-start: #00A35C;
+        --lm-progress-fill-end: #00ED64;
+        --lm-node-bg: #1A3642;
+        --lm-table-row-hover: #1A3642;
+        --lm-link: #0498EC;
+        --lm-banner-info-text: #0498EC;
+
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lm-progress.indeterminate .lm-fill {
+            animation: none;
+        }
+    }
+</style>
+<script>
+function resolveTheme(pref) {
+    if (pref === 'system') {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return pref === 'dark' ? 'dark' : 'light';
+}
+
+function applyAppearance(themePref) {
+    var theme = resolveTheme(themePref);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.dispatchEvent(new CustomEvent('mi-theme-changed', { detail: { theme: theme } }));
+    syncThemeToggleButton();
+}
+
+function toggleMiTheme() {
+    var current = document.documentElement.getAttribute('data-theme') || 'light';
+    var next = current === 'dark' ? 'light' : 'dark';
+    sessionStorage.setItem('mi_theme', next);
+    applyAppearance(next);
+}
+
+function syncThemeToggleButton() {
+    var btn = document.getElementById('themeToggleBtn');
+    if (!btn) return;
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    var tooltip = btn.querySelector('.tooltip');
+    if (tooltip) {
+        tooltip.textContent = isDark ? 'Light mode' : 'Dark mode';
+    }
+}
+
+(function() {
+    sessionStorage.removeItem('mi_color_scheme');
+    var savedTheme = sessionStorage.getItem('mi_theme') || 'light';
+    applyAppearance(savedTheme);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', syncThemeToggleButton);
+    } else {
+        syncThemeToggleButton();
+    }
+
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            var themePref = sessionStorage.getItem('mi_theme');
+            if (themePref === 'system') {
+                applyAppearance('system');
+            }
+        });
+    }
+})();
+</script>

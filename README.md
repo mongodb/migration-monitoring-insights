@@ -1,6 +1,69 @@
-# Migration Insights (former Mongosync Insights)
+# Migration Insights (formerly Mongosync Insights)
 
-Web dashboard for **mongosync** migrations: log analysis, real-time **Migration Monitoring**, and migration-verifier tracking.
+Web dashboard for real-time **mongosync** Migration Monitoring and migration-verifier tracking.
+
+**Migration monitoring** connects to a running mongosync migration: mongosync progress endpoint, optional destination connection string, embedded verifier (default), and optional standalone Migration Verifier endpoint. It routes to Full Migration, combined Dashboard, or Full Verifier depending on inputs.
+
+See **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** for the unified setup form, routing, data sources, polling, manual mismatch summary, index-building and verifier fallbacks.
+
+## Prerequisites
+
+- **Python 3.11+** (required)
+- **mongosync** — see [mongosync compatibility](#mongosync-compatibility) below
+- **migration-verifier** (optional, for Migration Verifier monitoring) — see [Migration Verifier compatibility](#migration-verifier-compatibility) below
+
+## mongosync compatibility
+
+Migration Insights is tested with recent mongosync versions **up to 1.22**.
+
+Earlier and later mongosync versions may work where APIs (for example `/api/v1/progress` and internal metadata databases) are unchanged. Behavior with untested versions is not guaranteed. Validate monitoring panels against your mongosync version before relying on them in production.
+
+## Migration Verifier compatibility
+
+Migration Verifier monitoring in Migration Insights was developed and tested with **migration-verifier 0.2.4**.
+
+Earlier and later migration-verifier versions may work where metadata version and APIs (for example `/api/v1/progress` and internal metadata databases) are unchanged. Behavior with untested versions is not guaranteed. Validate the verifier dashboard against your migration-verifier version before relying on it in production.
+
+## Quick start
+
+Run from source:
+
+```bash
+pip3 install -r requirements.txt   # if running from source
+python3 migration_insights.py
+```
+
+Open `http://127.0.0.1:3030` (default host/port).
+
+For **prebuilt installers** (macOS Apple Silicon, Amazon Linux 2023, Ubuntu, RHEL/CentOS packages), see **[PACKAGING.md](PACKAGING.md)**.
+
+To **configure** host, port, connection strings, refresh intervals, and other settings via environment variables, see **[CONFIGURATION.md](CONFIGURATION.md)**. Example pre-configuration before starting:
+
+```bash
+export MI_PROGRESS_ENDPOINT_URL="localhost:27182"
+# Optional: metadata fallback — destination cluster connection string
+export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
+python3 migration_insights.py
+```
+
+## Development
+
+From source, install dev dependencies and run the test suite:
+
+```bash
+pip3 install -r requirements.txt -r requirements-dev.txt
+python3 -m pytest tests/ -q
+```
+
+CI runs the same tests on push and pull request (see `.github/workflows/migration-insights-tests.yml`).
+
+## Documentation
+
+- **[CONFIGURATION.md](CONFIGURATION.md)** — environment variables
+- **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** — Migration Monitoring feature guide
+- **[PACKAGING.md](PACKAGING.md)** — official release builds (macOS arm64, AL2023, Ubuntu, RHEL/CentOS)
+- **[CONNECTION_STRING.md](CONNECTION_STRING.md)** — connection string guide
+- **[HTTPS_SETUP.md](HTTPS_SETUP.md)** — production HTTPS setup
 
 ### License
 
