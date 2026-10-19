@@ -1,0 +1,137 @@
+/* Monitoring setup page — Atlas cosmetic theme (layout unchanged) */
+
+@font-face {
+    font-family: 'Euclid Circular A';
+    font-weight: 400;
+    font-style: normal;
+    src: url('https://assets.mongodb-cdn.com/mms/static/font/EuclidCircularA-Regular-WebXL.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Euclid Circular A';
+    font-weight: 600;
+    font-style: normal;
+    src: url('https://assets.mongodb-cdn.com/mms/static/font/EuclidCircularA-Semibold-WebXL.woff2') format('woff2');
+}
+
+body {
+    background-color: var(--lm-page-bg);
+    color: var(--lm-text-primary);
+    font-family: var(--mi-font-ui);
+}
+
+main {
+    font-family: var(--mi-font-ui);
+}
+
+.form-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: stretch;
+    flex-wrap: wrap;
+}
+
+form {
+    width: 350px;
+    border: 1px solid var(--lm-card-border);
+    padding: 20px;
+    border-radius: var(--lm-card-radius);
+    background-color: var(--lm-card-bg);
+    box-shadow: var(--lm-card-shadow);
+    overflow: hidden;
+}
+
+h1,
+h2 {
+    color: var(--lm-text-primary);
+}
+
+p,
+label,
+small {
+    color: var(--lm-text-secondary);
+}
+
+strong {
+    color: var(--lm-text-primary);
+}
+
+a {
+    color: var(--lm-link);
+}
+
+.version-info {
+    text-align: center;
+    padding-top: 20px;
+}
+
+.version-info .version-tag {
+    font-size: 0.6em;
+    color: var(--lm-text-secondary);
+}
+
+.progress-endpoint-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.progress-endpoint-row .progress-host-input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.progress-endpoint-row .progress-port-input {
+    flex: 0 0 auto;
+    width: 4.5em;
+}
+
+input[type="text"],
+select {
+    background: var(--lm-node-bg);
+    color: var(--lm-text-primary);
+    border: 1px solid var(--lm-card-border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+input[type="submit"] {
+    background: var(--mongodb-green-dark1);
+    color: var(--mongodb-white);
+    border: 1px solid var(--mongodb-green-dark1);
+    border-radius: 4px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: var(--mi-font-ui);
+}
+
+input[type="submit"]:hover {
+    opacity: 0.85;
+}
+
+.verifier-note {
+    background: var(--mi-warning-bg);
+    border: 1px solid var(--mi-warning-border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    margin-top: 12px;
+    margin-bottom: 0;
+    color: var(--mi-warning-text);
+}
+
+.verifier-note strong {
+    color: var(--lm-text-primary);
+}
+
+[data-theme="dark"] .verifier-note {
+    background: var(--mi-warning-bg);
+    border-color: var(--mi-warning-border);
+    color: var(--mi-warning-text);
+}
