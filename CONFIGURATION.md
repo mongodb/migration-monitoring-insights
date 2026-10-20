@@ -174,13 +174,13 @@ Enable detailed logging for troubleshooting:
 ```bash
 # Enable debug logging
 export LOG_LEVEL=DEBUG
-export MI_LOG_FILE=/var/log/migration-insights/debug.log
+export MI_LOG_FILE=/var/log/migration-monitoring-insights/debug.log
 
 # Run the application
 python3 migration_insights.py
 
 # Tail the log in another terminal
-tail -f /var/log/migration-insights/debug.log
+tail -f /var/log/migration-monitoring-insights/debug.log
 ```
 
 ### Example 5: Production Configuration with HTTPS
@@ -304,12 +304,12 @@ sudo -E python3 migration_insights.py
 **Solution**:
 ```bash
 # Use writable location
-export MI_LOG_FILE=$HOME/migration-insights.log
+export MI_LOG_FILE=$HOME/migration-monitoring-insights.log
 
 # Or create directory with proper permissions
-sudo mkdir -p /var/log/migration-insights
-sudo chown $USER:$USER /var/log/migration-insights
-export MI_LOG_FILE=/var/log/migration-insights/insights.log
+sudo mkdir -p /var/log/migration-monitoring-insights
+sudo chown $USER:$USER /var/log/migration-monitoring-insights
+export MI_LOG_FILE=/var/log/migration-monitoring-insights/insights.log
 ```
 
 ---

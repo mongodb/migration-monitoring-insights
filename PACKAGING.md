@@ -1,19 +1,19 @@
 # Packaging Migration Insights
 
-Self-contained builds bundle Python and dependencies so target machines do not need `pip install`. Package name remains **`migration-insights`**.
+Self-contained builds bundle Python and dependencies so target machines do not need `pip install`. Package name is **`migration-monitoring-insights`**.
 
 ## Official GitHub Release matrix
 
 | Platform | Script / CI | Output |
 |---|---|---|
-| **macOS Apple Silicon** | `build_macos.sh --arch arm64` | `dist/migration-insights-<version>-macos-arm64` |
-| **Amazon Linux 2023 x86_64** | `build_amazonlinux.sh` | `dist/migration-insights-<version>-1.amzn.x86_64.rpm` |
-| **Amazon Linux 2023 aarch64** | `build_amazonlinux.sh` (on arm64 host) | `dist/migration-insights-<version>-1.amzn.aarch64.rpm` |
-| **Ubuntu 20.04 / 22.04 / 24.04 amd64** | `build_ubuntu.sh` (CI: `ubuntu:20.04` container) | `dist/migration-insights_<version>-1.ubuntu_amd64.deb` |
-| **RHEL 8 family x86_64** | `build_rhel.sh --el-major 8` | `dist/migration-insights-<version>-1.el8.x86_64.rpm` |
-| **RHEL 9 family x86_64** | `build_rhel.sh --el-major 9` | `dist/migration-insights-<version>-1.el9.x86_64.rpm` |
+| **macOS Apple Silicon** | `build_macos.sh --arch arm64` | `dist/migration-monitoring-insights-<version>-macos-arm64` |
+| **Amazon Linux 2023 x86_64** | `build_amazonlinux.sh` | `dist/migration-monitoring-insights-<version>-1.amzn.x86_64.rpm` |
+| **Amazon Linux 2023 aarch64** | `build_amazonlinux.sh` (on arm64 host) | `dist/migration-monitoring-insights-<version>-1.amzn.aarch64.rpm` |
+| **Ubuntu 20.04 / 22.04 / 24.04 amd64** | `build_ubuntu.sh` (CI: `ubuntu:20.04` container) | `dist/migration-monitoring-insights_<version>-1.ubuntu_amd64.deb` |
+| **RHEL 8 family x86_64** | `build_rhel.sh --el-major 8` | `dist/migration-monitoring-insights-<version>-1.el8.x86_64.rpm` |
+| **RHEL 9 family x86_64** | `build_rhel.sh --el-major 9` | `dist/migration-monitoring-insights-<version>-1.el9.x86_64.rpm` |
 
-Shared implementation: Linux scripts source `_build_linux_common.sh`. macOS uses `migration_insights_onefile.spec`; Linux packages use `migration_insights.spec` (directory bundle under `/opt/migration-insights`).
+Shared implementation: Linux scripts source `_build_linux_common.sh`. macOS uses `migration_insights_onefile.spec`; Linux packages use `migration_insights.spec` (directory bundle under `/opt/migration-monitoring-insights`).
 
 > **Cross-compile:** PyInstaller targets the OS and CPU it runs on. You cannot build macOS binaries from Linux, or Linux packages from macOS. Use a VM, native host, or CI for each platform/arch.
 
@@ -29,14 +29,14 @@ Official release builds are published automatically when a **version tag** is pu
 
 | Platform | File |
 |----------|------|
-| macOS Apple Silicon | `migration-insights-<version>-macos-arm64` |
-| Ubuntu 20.04 / 22.04 / 24.04 amd64 | `migration-insights_<version>-1.ubuntu_amd64.deb` |
-| Amazon Linux 2023 x86_64 | `migration-insights-<version>-1.amzn.x86_64.rpm` |
-| Amazon Linux 2023 aarch64 | `migration-insights-<version>-1.amzn.aarch64.rpm` |
-| RHEL 8 family x86_64 | `migration-insights-<version>-1.el8.x86_64.rpm` |
-| RHEL 9 family x86_64 | `migration-insights-<version>-1.el9.x86_64.rpm` |
+| macOS Apple Silicon | `migration-monitoring-insights-<version>-macos-arm64` |
+| Ubuntu 20.04 / 22.04 / 24.04 amd64 | `migration-monitoring-insights_<version>-1.ubuntu_amd64.deb` |
+| Amazon Linux 2023 x86_64 | `migration-monitoring-insights-<version>-1.amzn.x86_64.rpm` |
+| Amazon Linux 2023 aarch64 | `migration-monitoring-insights-<version>-1.amzn.aarch64.rpm` |
+| RHEL 8 family x86_64 | `migration-monitoring-insights-<version>-1.el8.x86_64.rpm` |
+| RHEL 9 family x86_64 | `migration-monitoring-insights-<version>-1.el9.x86_64.rpm` |
 
-**Linux packages** install under `/opt/migration-insights` with systemd support (see below). Packages declare **no** OS `Depends`/`Requires`; the PyInstaller bundle includes Python and application dependencies.
+**Linux packages** install under `/opt/migration-monitoring-insights` with systemd support (see below). Packages declare **no** OS `Depends`/`Requires`; the PyInstaller bundle includes Python and application dependencies.
 
 - Ubuntu: one `.deb` built on **20.04** covers 20.04, 22.04, and 24.04.
 - RHEL: use **el8** / **el9** matching your major. An el9 build is not expected to run on el8.
@@ -52,8 +52,8 @@ Official releases ship **Apple Silicon (arm64)** only. Use `build_macos.sh` on a
 
 ```bash
 ./build_macos.sh --arch arm64
-chmod +x dist/migration-insights-*-macos-arm64
-./dist/migration-insights-*-macos-arm64
+chmod +x dist/migration-monitoring-insights-*-macos-arm64
+./dist/migration-monitoring-insights-*-macos-arm64
 ```
 
 ### Prerequisites
@@ -68,14 +68,14 @@ Environment variables: `MI_HOST`, `MI_PORT`, `MI_CONNECTION_STRING`, `MI_PROGRES
 If macOS blocks the binary (“damaged” / unidentified developer):
 
 ```bash
-xattr -cr dist/migration-insights-*-macos-arm64
+xattr -cr dist/migration-monitoring-insights-*-macos-arm64
 ```
 
 ---
 
 ## Linux packages (RPM / DEB)
 
-Packages install under `/opt/migration-insights` with systemd and `/etc/migration-insights/env`. The target needs **no pip install**.
+Packages install under `/opt/migration-monitoring-insights` with systemd and `/etc/migration-monitoring-insights/env`. The target needs **no pip install**.
 
 > **Important:** Build on **Linux**, on the **same or older** OS/glibc as your deployment. A binary built on RHEL 9 or Ubuntu 24.04 may not run on older releases. When in doubt, build on the oldest target you support.
 
@@ -83,7 +83,7 @@ Packages install under `/opt/migration-insights` with systemd and `/etc/migratio
 
 | Tool | RPM distros | Ubuntu |
 |---|---|---|
-| Python 3.11+ | `python3.11`, `python3.11-pip` (el8/el9/AL2023) | `python3.11` (deadsnakes on 20.04), `python3.11-venv`; point `python3` at 3.11 via `update-alternatives` |
+| Python 3.11+ | `python3.11`, `python3.11-pip` (el8/el9/AL2023) | Build CPython 3.11 from source on 20.04 (deadsnakes no longer ships Focal packages); point `python3` at 3.11 via `update-alternatives` |
 | fpm | `sudo gem install fpm` | `sudo gem install fpm` |
 | Ruby | `ruby`, `rubygems` | `ruby-rubygems` |
 | rpmbuild | `rpm-build` (RPM only) | not required for `.deb` |
@@ -110,13 +110,24 @@ sudo gem install fpm
 
 ### Ubuntu
 
-Build on **20.04** if you want one `.deb` that also runs on 22.04 and 24.04:
+Build on **20.04** if you want one `.deb` that also runs on 22.04 and 24.04.
+
+Ubuntu 20.04 is EOL and deadsnakes no longer publishes Python packages for Focal, so install Python 3.11 from source:
 
 ```bash
 sudo apt-get update
-# 20.04: sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update
-sudo apt-get install -y python3.11 python3.11-venv python3-pip ruby-rubygems build-essential
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+sudo apt-get install -y \
+  ca-certificates curl build-essential \
+  libssl-dev zlib1g-dev libffi-dev libsqlite3-dev \
+  libreadline-dev libbz2-dev liblzma-dev libncurses-dev xz-utils \
+  ruby-rubygems
+PYTHON_VERSION=3.11.17
+curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" \
+  | tar -xz -C /tmp
+cd "/tmp/Python-${PYTHON_VERSION}"
+./configure --prefix=/usr/local --with-ensurepip=install
+make -j"$(nproc)" && sudo make altinstall
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
 sudo gem install fpm
 ./build_ubuntu.sh
 ```
@@ -126,7 +137,7 @@ sudo gem install fpm
 1. Read the app version from `lib/app_config.py`
 2. Create a temporary virtual environment and install dependencies
 3. Run PyInstaller (`migration_insights.spec`)
-4. Stage files under `/opt/migration-insights`, systemd unit, and config
+4. Stage files under `/opt/migration-monitoring-insights`, systemd unit, and config
 5. Build RPM or DEB with **fpm**
 6. Clean up the venv and staging directory
 
@@ -136,13 +147,13 @@ sudo gem install fpm
 
 ```bash
 # Pick the matching file (el8 / el9 / amzn + arch)
-sudo dnf install ./migration-insights-<version>-1.el8.x86_64.rpm
+sudo dnf install ./migration-monitoring-insights-<version>-1.el8.x86_64.rpm
 ```
 
 **DEB (Ubuntu):**
 
 ```bash
-sudo apt install ./migration-insights_*-1.ubuntu_amd64.deb
+sudo apt install ./migration-monitoring-insights_*-1.ubuntu_amd64.deb
 ```
 
 No internet is required on the target beyond installing the package.
@@ -151,14 +162,14 @@ No internet is required on the target beyond installing the package.
 
 | Path | Description |
 |---|---|
-| `/opt/migration-insights/` | Application (binary + bundled Python + deps) |
-| `/usr/local/bin/migration-insights` | Wrapper on `$PATH` |
-| `/usr/lib/systemd/system/migration-insights.service` | Systemd unit |
-| `/etc/migration-insights/env` | Configuration (preserved on upgrade) |
+| `/opt/migration-monitoring-insights/` | Application (binary + bundled Python + deps) |
+| `/usr/local/bin/migration-monitoring-insights` | Wrapper on `$PATH` |
+| `/usr/lib/systemd/system/migration-monitoring-insights.service` | Systemd unit |
+| `/etc/migration-monitoring-insights/env` | Configuration (preserved on upgrade) |
 
 ### Configuration (Linux packages)
 
-Edit `/etc/migration-insights/env`:
+Edit `/etc/migration-monitoring-insights/env`:
 
 ```bash
 MI_HOST=0.0.0.0
@@ -182,8 +193,8 @@ MI_VERIFIER_PROGRESS_TIMEOUT_SECS=30
 MI_VERIFIER_HEAVY_API_TIMEOUT_SECS=600
 MI_VERIFIER_METADATA_TIMEOUT_MS=120000
 MI_SSL_ENABLED=true
-MI_SSL_CERT=/etc/migration-insights/cert.pem
-MI_SSL_KEY=/etc/migration-insights/key.pem
+MI_SSL_CERT=/etc/migration-monitoring-insights/cert.pem
+MI_SSL_KEY=/etc/migration-monitoring-insights/key.pem
 LOG_LEVEL=DEBUG
 ```
 
@@ -191,23 +202,23 @@ See [CONFIGURATION.md](CONFIGURATION.md) for the full reference.
 
 ### Running (Linux packages)
 
-The systemd unit runs as the `migration-insights` system user created on install. `/etc/migration-insights/env` stays owned by root and is group-readable by that user (`640`). Keep that mode when editing the file so the service can still read it.
+The systemd unit runs as the `migration-monitoring-insights` system user created on install. `/etc/migration-monitoring-insights/env` stays owned by root and is group-readable by that user (`640`). Keep that mode when editing the file so the service can still read it.
 
-On install, certificate and key files named by `MI_SSL_CERT` and `MI_SSL_KEY` are also made group-readable when they already exist under `/etc/migration-insights/`. Paths outside that directory, including Let's Encrypt, are left unchanged. Grant the `migration-insights` group read access to those files yourself.
+On install, certificate and key files named by `MI_SSL_CERT` and `MI_SSL_KEY` are also made group-readable when they already exist under `/etc/migration-monitoring-insights/`. Paths outside that directory, including Let's Encrypt, are left unchanged. Grant the `migration-monitoring-insights` group read access to those files yourself.
 
-`/opt/migration-insights` stays owned by root and is not writable by the service. File logs go to `/var/log/migration-insights/insights.log`, which the package creates for the service user. The unit sets that path; a `MI_LOG_FILE` line in the env file overrides it. `ProtectSystem=strict` blocks writes anywhere else, including a custom `MI_LOG_FILE` outside `/var/log/migration-insights`.
+`/opt/migration-monitoring-insights` stays owned by root and is not writable by the service. File logs go to `/var/log/migration-monitoring-insights/insights.log`, which the package creates for the service user. The unit sets that path; a `MI_LOG_FILE` line in the env file overrides it. `ProtectSystem=strict` blocks writes anywhere else, including a custom `MI_LOG_FILE` outside `/var/log/migration-monitoring-insights`.
 
 ```bash
-sudo systemctl start migration-insights
-sudo systemctl enable migration-insights
-sudo systemctl status migration-insights
-journalctl -u migration-insights -f
+sudo systemctl start migration-monitoring-insights
+sudo systemctl enable migration-monitoring-insights
+sudo systemctl status migration-monitoring-insights
+journalctl -u migration-monitoring-insights -f
 ```
 
 Manual run:
 
 ```bash
-MI_HOST=0.0.0.0 MI_PORT=8080 /opt/migration-insights/migration-insights
+MI_HOST=0.0.0.0 MI_PORT=8080 /opt/migration-monitoring-insights/migration-monitoring-insights
 ```
 
 ### Uninstalling
@@ -215,13 +226,13 @@ MI_HOST=0.0.0.0 MI_PORT=8080 /opt/migration-insights/migration-insights
 **RPM:**
 
 ```bash
-sudo rpm -e migration-insights
+sudo rpm -e migration-monitoring-insights
 ```
 
 **DEB:**
 
 ```bash
-sudo apt remove migration-insights
+sudo apt remove migration-monitoring-insights
 ```
 
 ### Upgrading
@@ -229,13 +240,13 @@ sudo apt remove migration-insights
 **RPM:**
 
 ```bash
-sudo rpm -U migration-insights-<new-version>-1.el8.x86_64.rpm
+sudo rpm -U migration-monitoring-insights-<new-version>-1.el8.x86_64.rpm
 ```
 
 **DEB:**
 
 ```bash
-sudo apt install ./migration-insights_<new-version>-1.ubuntu_amd64.deb
+sudo apt install ./migration-monitoring-insights_<new-version>-1.ubuntu_amd64.deb
 ```
 
 ---
@@ -245,7 +256,7 @@ sudo apt install ./migration-insights_<new-version>-1.ubuntu_amd64.deb
 - Packages are **CPU-specific** (`x86_64`, `aarch64`/`arm64`). Build on the same architecture as the target.
 - Linux binaries are **glibc-specific**. Build on the same or older distro major version as production.
 - One Ubuntu **20.04** build covers newer Ubuntu LTS hosts; RHEL majors are published separately.
-- macOS one-file builds extract to a temp directory at runtime; Linux packages use `/opt/migration-insights`.
+- macOS one-file builds extract to a temp directory at runtime; Linux packages use `/opt/migration-monitoring-insights`.
 - Bundled `certifi` CA certificates are frozen at build time; rebuild to update them.
 
 ## Troubleshooting
@@ -257,15 +268,15 @@ The package was built on a newer OS than the target. Rebuild on the same or olde
 ### Service fails to start (Linux)
 
 ```bash
-journalctl -u migration-insights --no-pager -n 50
+journalctl -u migration-monitoring-insights --no-pager -n 50
 ```
 
-Common causes: port in use (`MI_PORT`), missing SSL cert paths in `/etc/migration-insights/env`.
+Common causes: port in use (`MI_PORT`), missing SSL cert paths in `/etc/migration-monitoring-insights/env`.
 
 ### macOS "damaged" or won't open
 
 ```bash
-xattr -cr dist/migration-insights-*-macos-arm64
+xattr -cr dist/migration-monitoring-insights-*-macos-arm64
 ```
 
 ### License
