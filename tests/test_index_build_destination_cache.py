@@ -5,6 +5,8 @@ import pytest
 
 from lib.index_build_destination_cache import (
     DestinationScanEntry,
+    _cache_key,
+    _entries,
     clear_all,
     coll_uuid_key,
     resolve_extra_built_with_cache,
@@ -17,6 +19,17 @@ def _clear_cache():
     clear_all()
     yield
     clear_all()
+
+
+class TestCacheKey:
+    def test_sha256_hex_differs_from_raw_uri(self):
+        uri = "mongodb://user:secret@host/"
+        key = _cache_key(uri)
+        assert len(key) == 64
+        assert all(c in "0123456789abcdef" for c in key)
+        assert key != uri
+        assert "secret" not in key
+        assert key == _cache_key(uri)
 
 
 class TestCollUuidKey:
@@ -91,3 +104,15 @@ class TestResolveExtraBuiltWithCache:
             now=100.0,
         )
         assert result == {}
+
+    def test_entries_keyed_by_digest_not_raw_uri(self):
+        uri = "mongodb://user:secret@host/"
+        resolve_extra_built_with_cache(
+            uri,
+            [{"_id": "uuid1", "indexesPending": 1}],
+            60,
+            lambda: {"uuid1": 2},
+            now=100.0,
+        )
+        assert uri not in _entries
+        assert list(_entries.keys()) == [_cache_key(uri)]

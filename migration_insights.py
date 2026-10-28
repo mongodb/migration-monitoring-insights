@@ -19,6 +19,7 @@ try:
         session_store,
         setup_logging,
         validate_config,
+        warn_removed_connection_env,
     )
     validate_config()
 except (PermissionError, ValueError) as e:
@@ -30,6 +31,7 @@ from blueprints.live import live_home
 from lib.session_support import SESSION_COOKIE_NAME
 
 logger = setup_logging()
+warn_removed_connection_env(logger)
 
 if getattr(sys, "frozen", False):
     _base_path = sys._MEIPASS

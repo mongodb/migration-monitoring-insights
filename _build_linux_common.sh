@@ -8,6 +8,9 @@
 : "${LINUX_DISTRO:?LINUX_DISTRO must be set}"
 : "${PACKAGE_FORMAT:=rpm}"
 
+# Released package / install basename (deb/rpm/macOS artifact prefix).
+PACKAGE_NAME="migration-monitoring-insights"
+
 linux_common_init() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
     cd "$SCRIPT_DIR"
@@ -81,8 +84,23 @@ EOF
 Install build prerequisites (example):
 
   sudo apt-get update
-  sudo apt-get install -y python3.11 python3.11-venv python3-pip ruby-rubygems build-essential
-  sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+  sudo apt-get install -y \
+    ca-certificates curl build-essential \
+    libssl-dev zlib1g-dev libffi-dev libsqlite3-dev \
+    libreadline-dev libbz2-dev liblzma-dev libncurses-dev xz-utils \
+    ruby-rubygems
+  # On 20.04 (Focal EOL): build Python 3.11 from source (deadsnakes no longer ships packages)
+  PYTHON_VERSION=3.11.17
+  curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" \
+    | tar -xz -C /tmp
+  (
+    cd "/tmp/Python-${PYTHON_VERSION}"
+    ./configure --prefix=/usr/local --enable-shared --with-ensurepip=install
+    make -j"$(nproc)" && sudo make altinstall
+  )
+  echo /usr/local/lib | sudo tee /etc/ld.so.conf.d/python3.11-local.conf
+  sudo ldconfig
+  sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
   sudo gem install fpm
 EOF
             ;;
@@ -142,7 +160,7 @@ linux_pyinstaller_bundle() {
     echo "==> Running PyInstaller"
     pyinstaller --clean --noconfirm migration_insights.spec
 
-    DIST_DIR="$SCRIPT_DIR/dist/migration-insights"
+    DIST_DIR="$SCRIPT_DIR/dist/${PACKAGE_NAME}"
     if [[ ! -d "$DIST_DIR" ]]; then
         echo "ERROR: PyInstaller output not found at ${DIST_DIR}" >&2
         return 1
@@ -154,40 +172,40 @@ linux_prepare_staging() {
     STAGING="$SCRIPT_DIR/dist/pkg-staging-${LINUX_DISTRO}"
     rm -rf "$STAGING"
 
-    INSTALL_PREFIX="/opt/migration-insights"
+    INSTALL_PREFIX="/opt/${PACKAGE_NAME}"
 
     mkdir -p "$STAGING/$INSTALL_PREFIX"
     cp -a "$DIST_DIR"/. "$STAGING/$INSTALL_PREFIX/"
 
     mkdir -p "$STAGING/usr/local/bin"
-    cat > "$STAGING/usr/local/bin/migration-insights" <<'WRAPPER'
+    cat > "$STAGING/usr/local/bin/${PACKAGE_NAME}" <<WRAPPER
 #!/usr/bin/env bash
-exec /opt/migration-insights/migration-insights "$@"
+exec /opt/${PACKAGE_NAME}/${PACKAGE_NAME} "\$@"
 WRAPPER
-    chmod 755 "$STAGING/usr/local/bin/migration-insights"
+    chmod 755 "$STAGING/usr/local/bin/${PACKAGE_NAME}"
 
     mkdir -p "$STAGING/usr/lib/systemd/system"
-    cp "$SCRIPT_DIR/migration-insights.service" "$STAGING/usr/lib/systemd/system/"
+    cp "$SCRIPT_DIR/${PACKAGE_NAME}.service" "$STAGING/usr/lib/systemd/system/"
 
-    mkdir -p "$STAGING/etc/migration-insights"
-    cat > "$STAGING/etc/migration-insights/env" <<'ENVFILE'
+    mkdir -p "$STAGING/etc/${PACKAGE_NAME}"
+    cat > "$STAGING/etc/${PACKAGE_NAME}/env" <<ENVFILE
 # Migration Insights configuration
 # Uncomment and edit the variables you need.
 # See CONFIGURATION.md for the full reference.
 
 # MI_HOST=0.0.0.0
 # MI_PORT=3030
-# MI_CONNECTION_STRING=mongodb+srv://user:pass@cluster.mongodb.net/
+# MI_DESTINATION_CONNECTION_STRING=mongodb+srv://user:pass@cluster.mongodb.net/
 # MI_PROGRESS_ENDPOINT_URL=localhost:27182
 # MI_REFRESH_TIME=10
 # MI_INDEX_BUILD_REFRESH_TIME=60
 # MI_SSL_ENABLED=false
-# MI_SSL_CERT=/etc/migration-insights/cert.pem
-# MI_SSL_KEY=/etc/migration-insights/key.pem
+# MI_SSL_CERT=/etc/${PACKAGE_NAME}/cert.pem
+# MI_SSL_KEY=/etc/${PACKAGE_NAME}/key.pem
 # LOG_LEVEL=INFO
-MI_LOG_FILE=/var/log/migration-insights/insights.log
+MI_LOG_FILE=/var/log/${PACKAGE_NAME}/insights.log
 ENVFILE
-    chmod 600 "$STAGING/etc/migration-insights/env"
+    chmod 600 "$STAGING/etc/${PACKAGE_NAME}/env"
 
     find "$STAGING" -path '*/.build-id' -type d -exec rm -rf {} + 2>/dev/null || true
 }
@@ -196,21 +214,21 @@ linux_write_maintainer_scripts() {
     POST_INSTALL=$(mktemp)
     cat > "$POST_INSTALL" <<'SCRIPT'
 #!/bin/bash
-if ! getent passwd migration-insights >/dev/null 2>&1; then
+if ! getent passwd migration-monitoring-insights >/dev/null 2>&1; then
     if [ -x /usr/sbin/nologin ]; then
         _mi_shell=/usr/sbin/nologin
     else
         _mi_shell=/sbin/nologin
     fi
-    useradd --system --home-dir /opt/migration-insights --shell "$_mi_shell" migration-insights
+    useradd --system --home-dir /opt/migration-monitoring-insights --shell "$_mi_shell" migration-monitoring-insights
 fi
-chown -R root:root /opt/migration-insights
-install -d -o migration-insights -g migration-insights -m 755 /var/log/migration-insights
-if [ -f /etc/migration-insights/env ]; then
-    chown root:migration-insights /etc/migration-insights/env
-    chmod 640 /etc/migration-insights/env
+chown -R root:root /opt/migration-monitoring-insights
+install -d -o migration-monitoring-insights -g migration-monitoring-insights -m 755 /var/log/migration-monitoring-insights
+if [ -f /etc/migration-monitoring-insights/env ]; then
+    chown root:migration-monitoring-insights /etc/migration-monitoring-insights/env
+    chmod 640 /etc/migration-monitoring-insights/env
     _mi_env_value() {
-        sed -n "s/^[[:space:]]*$1=//p" /etc/migration-insights/env \
+        sed -n "s/^[[:space:]]*$1=//p" /etc/migration-monitoring-insights/env \
             | head -n 1 \
             | sed -e 's/[[:space:]]*#.*//' -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's/[[:space:]]*$//'
     }
@@ -220,13 +238,13 @@ if [ -f /etc/migration-insights/env ]; then
         [ -e "$_mi_path" ] || return 0
         _mi_real=$(readlink -f "$_mi_path" 2>/dev/null || realpath "$_mi_path" 2>/dev/null || printf '%s' "$_mi_path")
         case "$_mi_real" in
-            /etc/migration-insights|/etc/migration-insights/*)
-                chown root:migration-insights "$_mi_real"
+            /etc/migration-monitoring-insights|/etc/migration-monitoring-insights/*)
+                chown root:migration-monitoring-insights "$_mi_real"
                 chmod 640 "$_mi_real"
                 ;;
             *)
-                echo "TLS file $_mi_path is outside /etc/migration-insights/."
-                echo "Grant the migration-insights group read access so the service can use it."
+                echo "TLS file $_mi_path is outside /etc/migration-monitoring-insights/."
+                echo "Grant the migration-monitoring-insights group read access so the service can use it."
                 ;;
         esac
     }
@@ -234,14 +252,14 @@ if [ -f /etc/migration-insights/env ]; then
     _mi_grant_tls "$(_mi_env_value MI_SSL_KEY)"
 fi
 systemctl daemon-reload 2>/dev/null || true
-systemctl try-restart migration-insights 2>/dev/null || true
+systemctl try-restart migration-monitoring-insights 2>/dev/null || true
 echo ""
-echo "Migration Insights installed to /opt/migration-insights/"
+echo "Migration Insights installed to /opt/migration-monitoring-insights/"
 echo ""
-echo "  Configure:  /etc/migration-insights/env"
-echo "  Start:      sudo systemctl start migration-insights"
-echo "  Status:     sudo systemctl status migration-insights"
-echo "  Logs:       journalctl -u migration-insights -f"
+echo "  Configure:  /etc/migration-monitoring-insights/env"
+echo "  Start:      sudo systemctl start migration-monitoring-insights"
+echo "  Status:     sudo systemctl status migration-monitoring-insights"
+echo "  Logs:       journalctl -u migration-monitoring-insights -f"
 echo ""
 SCRIPT
 
@@ -251,8 +269,8 @@ SCRIPT
 # RPM erase passes 0; Debian removal passes remove or purge.
 # Upgrade must leave an enabled unit running so post-install can restart it.
 if [ "$1" = "0" ] || [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-    systemctl stop migration-insights 2>/dev/null || true
-    systemctl disable migration-insights 2>/dev/null || true
+    systemctl stop migration-monitoring-insights 2>/dev/null || true
+    systemctl disable migration-monitoring-insights 2>/dev/null || true
 fi
 SCRIPT
 
@@ -292,13 +310,13 @@ linux_build_package() {
         fpm \
             -s dir \
             -t "$fpm_target" \
-            -n migration-insights \
+            -n "$PACKAGE_NAME" \
             -v "$APP_VERSION" \
             --iteration "$iteration" \
             --license "Apache-2.0" \
             --vendor "MongoDB Support" \
             --description "Migration Insights — MongoDB migration monitoring dashboard" \
-            --url "https://github.com/mongodb/migration-insights" \
+            --url "https://github.com/mongodb/migration-monitoring-insights" \
             --architecture native \
             --rpm-auto-add-directories \
             --rpm-rpmbuild-define '_build_id_links none' \
@@ -306,7 +324,9 @@ linux_build_package() {
             --after-install "$POST_INSTALL" \
             --before-remove "$PRE_UNINSTALL" \
             --after-remove "$POST_UNINSTALL" \
-            --config-files /etc/migration-insights/env \
+            --config-files "/etc/${PACKAGE_NAME}/env" \
+            --replaces migration-insights \
+            --conflicts migration-insights \
             --package "$pkg_output" \
             -C "$STAGING" \
             .
@@ -314,19 +334,21 @@ linux_build_package() {
         fpm \
             -s dir \
             -t deb \
-            -n migration-insights \
+            -n "$PACKAGE_NAME" \
             -v "$APP_VERSION" \
             --iteration "$iteration" \
             --license "Apache-2.0" \
             --vendor "MongoDB Support" \
             --description "Migration Insights — MongoDB migration monitoring dashboard" \
-            --url "https://github.com/mongodb/migration-insights" \
+            --url "https://github.com/mongodb/migration-monitoring-insights" \
             --architecture native \
             --exclude '**/.build-id' \
             --after-install "$POST_INSTALL" \
             --before-remove "$PRE_UNINSTALL" \
             --after-remove "$POST_UNINSTALL" \
-            --config-files /etc/migration-insights/env \
+            --config-files "/etc/${PACKAGE_NAME}/env" \
+            --replaces migration-insights \
+            --conflicts migration-insights \
             --package "$pkg_output" \
             -C "$STAGING" \
             .
@@ -343,10 +365,10 @@ linux_cleanup() {
 linux_print_success() {
     local pattern install_cmd
     if [[ "$PACKAGE_FORMAT" == "rpm" ]]; then
-        pattern="$SCRIPT_DIR/dist/migration-insights-*.rpm"
+        pattern="$SCRIPT_DIR/dist/${PACKAGE_NAME}-*.rpm"
         install_cmd="sudo rpm -i"
     else
-        pattern="$SCRIPT_DIR/dist/migration-insights_*.deb"
+        pattern="$SCRIPT_DIR/dist/${PACKAGE_NAME}_*.deb"
         install_cmd="sudo apt install ./"
     fi
 

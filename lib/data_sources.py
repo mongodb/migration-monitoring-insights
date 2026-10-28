@@ -23,26 +23,25 @@ def build_data_sources(
     """Return toolbar badge payload for configured data sources.
 
     Only configured sources appear as badges. ``progress_status`` / ``metadata_status``
-    may be None when that source was not evaluated on the current poll (verifier slices).
+    may be None when that source was not evaluated on the current poll (verifier slices);
+    unevaluated sources are omitted from this response.
     """
     badges = []
 
-    if progress_configured:
-        status = progress_status or STATUS_UNAVAILABLE
+    if progress_configured and progress_status is not None:
         badges.append({
             "id": "progress",
             "label": progress_label,
-            "status": status,
-            "color": _COLOR_BY_STATUS.get(status, "yellow"),
+            "status": progress_status,
+            "color": _COLOR_BY_STATUS.get(progress_status, "yellow"),
         })
 
-    if metadata_configured:
-        status = metadata_status or STATUS_UNAVAILABLE
+    if metadata_configured and metadata_status is not None:
         badges.append({
             "id": "metadata",
             "label": metadata_label,
-            "status": status,
-            "color": _COLOR_BY_STATUS.get(status, "yellow"),
+            "status": metadata_status,
+            "color": _COLOR_BY_STATUS.get(metadata_status, "yellow"),
         })
 
     if not badges:

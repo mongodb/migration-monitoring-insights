@@ -73,7 +73,7 @@ PORT = parse_env_int('MI_PORT', 3030, min_value=1, max_value=65535)
 
 # Application constants
 APP_NAME = "Migration Insights"
-APP_VERSION = "0.9.3.25"
+APP_VERSION = "0.9.4.30"
 
 DEVELOPER_CREDITS = {
     "copyright": "\u00a9 MongoDB Inc.",
@@ -104,10 +104,7 @@ VERIFIER_HEAVY_API_TIMEOUT_SECS = parse_env_int(
     'MI_VERIFIER_HEAVY_API_TIMEOUT_SECS', 600, min_value=1,
 )
 VERIFIER_SUMMARY_COOLDOWN_SECS = VERIFIER_HEAVY_API_TIMEOUT_SECS
-CONNECTION_STRING = os.getenv('MI_CONNECTION_STRING', '')
-_VERIFIER_CONNECTION_STRING_EXPLICIT = os.getenv('MI_VERIFIER_CONNECTION_STRING', '').strip()
-VERIFIER_CONNECTION_STRING_CONFIGURED = bool(_VERIFIER_CONNECTION_STRING_EXPLICIT)
-VERIFIER_CONNECTION_STRING = _VERIFIER_CONNECTION_STRING_EXPLICIT or CONNECTION_STRING
+DESTINATION_CONNECTION_STRING = os.getenv('MI_DESTINATION_CONNECTION_STRING', '')
 
 PROGRESS_API_PATH = "/api/v1/progress"
 VERIFIER_SUMMARY_API_PATH = "/api/v1/summary"
@@ -297,6 +294,30 @@ def setup_logging():
     handler.setLevel(log_level)
     root.addHandler(handler)
     return logging.getLogger(__name__)
+
+
+_REMOVED_CONNECTION_ENV_NAMES = (
+    "MI_CONNECTION_STRING",
+    "MI_VERIFIER_CONNECTION_STRING",
+)
+
+
+def warn_removed_connection_env(logger=None):
+    """Warn when removed connection-string env names are set.
+
+    Does not read those values into DESTINATION_CONNECTION_STRING.
+    Only warns when MI_DESTINATION_CONNECTION_STRING is unset.
+    """
+    if os.getenv("MI_DESTINATION_CONNECTION_STRING", "").strip():
+        return
+    log = logger or logging.getLogger(__name__)
+    for name in _REMOVED_CONNECTION_ENV_NAMES:
+        if os.getenv(name, "").strip():
+            log.warning(
+                "%s is no longer used. Set MI_DESTINATION_CONNECTION_STRING instead.",
+                name,
+            )
+
 
 def get_app_info():
     """Get application information."""

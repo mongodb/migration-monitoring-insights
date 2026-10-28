@@ -119,7 +119,6 @@ function validateMonitorForm() {
     var embeddedCheckbox = document.getElementById('embeddedVerifier');
     var verifierHostField = document.getElementById('verifierProgressHost');
     var verifierPortField = document.getElementById('verifierProgressPort');
-
     var connConfigured = connField === null || connField.value.trim() !== '';
     var hostConfigured = hostField === null || hostField.value.trim() !== '';
     var hasMongosyncInput = connConfigured || hostConfigured;
@@ -134,7 +133,7 @@ function validateMonitorForm() {
     if (!hasMongosyncInput && !hasVerifierInput) {
         alert(
             "Please provide at least one of the following: Mongosync progress endpoint, " +
-            "MongoDB connection string, or Migration Verifier progress endpoint."
+            "MongoDB destination connection string, or Migration Verifier progress endpoint."
         );
         return false;
     }
