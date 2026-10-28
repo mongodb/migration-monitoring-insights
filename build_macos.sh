@@ -14,7 +14,7 @@
 #   ./build_macos.sh --arch arm64
 #
 # Output (example):
-#   dist/migration-insights-0.9.3.9-macos-arm64
+#   dist/migration-monitoring-insights-0.9.3.9-macos-arm64
 # =============================================================================
 set -euo pipefail
 
@@ -88,20 +88,21 @@ pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 pip install pyinstaller
 
-rm -rf build dist/migration-insights
+PACKAGE_NAME="migration-monitoring-insights"
+rm -rf "build" "dist/${PACKAGE_NAME}"
 pyinstaller --clean --noconfirm migration_insights_onefile.spec
 
 deactivate 2>/dev/null || true
 rm -rf "$venv_dir"
 
-if [[ ! -f "${SCRIPT_DIR}/dist/migration-insights" ]]; then
-    echo "ERROR: PyInstaller did not produce dist/migration-insights" >&2
+if [[ ! -f "${SCRIPT_DIR}/dist/${PACKAGE_NAME}" ]]; then
+    echo "ERROR: PyInstaller did not produce dist/${PACKAGE_NAME}" >&2
     exit 1
 fi
 
-dist_name="migration-insights-${APP_VERSION}-macos-arm64"
+dist_name="${PACKAGE_NAME}-${APP_VERSION}-macos-arm64"
 output_path="${SCRIPT_DIR}/dist/${dist_name}"
-mv "${SCRIPT_DIR}/dist/migration-insights" "$output_path"
+mv "${SCRIPT_DIR}/dist/${PACKAGE_NAME}" "$output_path"
 chmod 755 "$output_path"
 
 # Clear quarantine bit if present (e.g. after copying from another machine)

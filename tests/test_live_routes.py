@@ -26,6 +26,7 @@ def _ctx(
     connection_string=None,
     embedded_verifier=True,
     verifier_endpoint_url=None,
+    verifier_connection_string=None,
     mongosync_metadata_available=False,
     verifier_metadata_available=False,
 ):
@@ -34,7 +35,7 @@ def _ctx(
         "connection_string": connection_string,
         "embedded_verifier": embedded_verifier,
         "verifier_endpoint_url": verifier_endpoint_url,
-        "verifier_connection_string": None,
+        "verifier_connection_string": verifier_connection_string,
         "mongosync_metadata_available": mongosync_metadata_available,
         "verifier_metadata_available": verifier_metadata_available,
     }
@@ -96,6 +97,63 @@ class TestMonitorClassification:
         assert nav["show_full_migration"] is True
         assert nav["show_full_verifier"] is True
 
+    def test_metadata_only_standalone_verifier_destination_is_verifier(self):
+        ctx = _ctx(
+            connection_string="mongodb://localhost:27017",
+            embedded_verifier=False,
+            verifier_metadata_available=True,
+        )
+        assert _resolve_monitor_destination(ctx) == "verifier"
+
+    def test_metadata_only_standalone_with_mongosync_db_is_migration(self):
+        ctx = _ctx(
+            connection_string="mongodb://localhost:27017",
+            embedded_verifier=False,
+            mongosync_metadata_available=True,
+            verifier_metadata_available=True,
+        )
+        assert _resolve_monitor_destination(ctx) == "migration"
+
+    def test_metadata_only_standalone_with_mongosync_db_nav_without_dashboard(self):
+        ctx = _ctx(
+            connection_string="mongodb://localhost:27017",
+            embedded_verifier=False,
+            mongosync_metadata_available=True,
+            verifier_metadata_available=True,
+        )
+        nav = _live_nav_context(ctx, "migration")
+        assert nav["show_dashboard"] is False
+        assert nav["show_full_migration"] is True
+        assert nav["show_full_verifier"] is True
+
+    def test_verifier_connection_string_only_destination_is_verifier(self):
+        ctx = _ctx(
+            embedded_verifier=False,
+            verifier_connection_string="mongodb://verifier:27017",
+        )
+        assert _resolve_monitor_destination(ctx) == "verifier"
+
+    def test_progress_and_metadata_only_verifier_is_migration_not_dashboard(self):
+        ctx = _ctx(
+            endpoint_url="h:27182/api/v1/progress",
+            connection_string="mongodb://localhost:27017",
+            embedded_verifier=False,
+            verifier_metadata_available=True,
+        )
+        assert _resolve_monitor_destination(ctx) == "migration"
+        nav = _live_nav_context(ctx, "migration")
+        assert nav["show_dashboard"] is False
+        assert nav["show_full_verifier"] is True
+        assert nav["show_full_migration"] is True
+
+    def test_progress_and_verifier_http_still_dashboard(self):
+        ctx = _ctx(
+            endpoint_url="h:27182/api/v1/progress",
+            embedded_verifier=False,
+            verifier_endpoint_url="h:27020/api/v1/progress",
+        )
+        assert _resolve_monitor_destination(ctx) == "dashboard"
+
 
 class TestLiveHome:
     def test_live_home_returns_200(self, app_client):
@@ -114,13 +172,28 @@ class TestLiveHome:
         assert "Using mongosync Embedded Verifier" in html
         assert "verifierProgressHost" in html
 
-    def test_connection_string_fallback_keeps_embedded_verifier(self, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", "mongodb://shared"), \
-             patch("blueprints.live.VERIFIER_CONNECTION_STRING_CONFIGURED", False), \
-             patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
+    def test_destination_connection_string_keeps_embedded_verifier(self, app_client):
+        with patch(
+            "blueprints.live.DESTINATION_CONNECTION_STRING",
+            "mongodb://shared",
+        ), patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
             r = app_client.get("/live/")
         html = r.data.decode()
         assert 'id="embeddedVerifier"' in html
+        assert "disabled" not in html.split('id="embeddedVerifier"')[1].split(">")[0]
+
+    def test_live_home_destination_connection_env_exposes_note(self, app_client):
+        with patch(
+            "blueprints.live.DESTINATION_CONNECTION_STRING",
+            "mongodb://user:secret@destination.example:27017",
+        ), patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
+            r = app_client.get("/live/")
+        html = r.data.decode()
+        assert r.status_code == 200
+        assert "Destination cluster:" in html
+        assert "Pre-configured via environment variable." in html
+        assert "destination.example" in html
+        assert "secret" not in html
         assert "disabled" not in html.split('id="embeddedVerifier"')[1].split(">")[0]
 
     def test_live_home_has_sidebar_guide(self, app_client):
@@ -232,6 +305,60 @@ class TestLiveMonitoring:
         )
         assert r.status_code == 302
         assert "/live/verifier/view" in r.headers["Location"]
+
+    @patch(
+        "blueprints.live._probe_connection_flags",
+        return_value={
+            "mongosync_metadata_available": False,
+            "verifier_metadata_available": True,
+        },
+    )
+    @patch("blueprints.live.validate_connection", return_value=True)
+    @patch("blueprints.live.store_session_data", return_value="sid")
+    def test_monitor_metadata_only_standalone_redirects_to_verifier(
+        self, _session, _validate, _probe, app_client,
+    ):
+        r = app_client.post(
+            "/live/monitor",
+            data={"connectionString": "mongodb://localhost:27017"},
+        )
+        assert r.status_code == 302
+        assert "/live/verifier/view" in r.headers["Location"]
+        saved = _session.call_args.args[0]
+        assert saved["verifier_connection_string"] == "mongodb://localhost:27017"
+        assert saved["verifier_metadata_available"] is True
+        assert saved["embedded_verifier"] is False
+
+    def test_monitor_empty_form_with_no_env_returns_no_input(self, app_client):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""), \
+             patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""), \
+             patch("blueprints.live.PROGRESS_ENDPOINT_URL", ""):
+            r = app_client.post("/live/monitor", data={})
+        assert r.status_code == 200
+        assert b"No Input Provided" in r.data
+
+    @patch(
+        "blueprints.live._probe_connection_flags",
+        return_value={
+            "mongosync_metadata_available": False,
+            "verifier_metadata_available": False,
+        },
+    )
+    @patch("blueprints.live.validate_connection", return_value=True)
+    @patch("blueprints.live.store_session_data", return_value="sid")
+    def test_monitor_destination_only_without_verifier_db_stays_migration(
+        self, _session, _validate, _probe, app_client,
+    ):
+        """Destination CS alone must not become a phantom standalone verifier."""
+        r = app_client.post(
+            "/live/monitor",
+            data={"connectionString": "mongodb://localhost:27017"},
+        )
+        assert r.status_code == 302
+        assert "/live/migration" in r.headers["Location"]
+        saved = _session.call_args.args[0]
+        assert saved["verifier_connection_string"] is None
+        assert saved["verifier_metadata_available"] is False
 
     def test_live_monitoring_no_input(self, app_client):
         r = app_client.post("/live/live_monitoring", data={})
@@ -430,7 +557,7 @@ class TestVerifierRoutes:
         return_value={"verifier_endpoint_url": "localhost:27020/api/v1/progress"},
     )
     def test_get_verifier_progress(self, _session, mock_build, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/get_verifier_progress")
         assert r.status_code == 200
         assert r.get_json()["display"]["verificationProgress"]["phase"] == "check"
@@ -441,7 +568,7 @@ class TestVerifierRoutes:
         return_value={"verifier_endpoint_url": "localhost:27020/api/v1/progress"},
     )
     def test_run_verifier_summary(self, _session, mock_build, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/run_verifier_summary")
         assert r.status_code == 200
         mock_build.assert_called_once_with("localhost:27020/api/v1/progress")
@@ -453,7 +580,7 @@ class TestVerifierRoutes:
     )
     def test_run_verifier_summary_forbidden_gen0(self, _session, mock_build, app_client):
         mock_build.return_value = ({"error": "generation 0"}, 403)
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/run_verifier_summary")
         assert r.status_code == 403
 
@@ -467,7 +594,7 @@ class TestVerifierRoutes:
             {"error": "cooldown", "cooldownRemainingSecs": 120, "display": {}},
             429,
         )
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/run_verifier_summary")
         assert r.status_code == 429
         assert r.get_json()["cooldownRemainingSecs"] == 120
@@ -485,7 +612,7 @@ class TestVerifierRoutes:
     )
     def test_get_verifier_progress_missing_endpoint(self, _session, app_client):
         app_client.set_cookie(SESSION_COOKIE_NAME, "sid")
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
                 r = app_client.post("/live/get_verifier_progress")
         assert r.status_code == 400
@@ -493,7 +620,7 @@ class TestVerifierRoutes:
 
     @patch("blueprints.live.session_store.get_session", return_value={})
     def test_get_verifier_progress_expired_session(self, _session, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
                 r = app_client.post("/live/get_verifier_progress")
         assert r.status_code == 401
@@ -501,7 +628,7 @@ class TestVerifierRoutes:
 
     @patch("blueprints.live.session_store.get_session", return_value={})
     def test_run_verifier_summary_expired_session(self, _session, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
                 r = app_client.post("/live/run_verifier_summary")
         assert r.status_code == 401
@@ -513,21 +640,68 @@ class TestVerifierRoutes:
     )
     def test_get_verifier_metadata_missing_connection(self, _session, app_client):
         app_client.set_cookie(SESSION_COOKIE_NAME, "sid")
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/get_verifier_metadata")
+        assert r.status_code == 400
+        assert r.get_json()["error"] == "No verifier connection string is configured."
+
+    @patch(
+        "blueprints.live.build_verifier_metadata_payload",
+        return_value={"display": {"generations": []}},
+    )
+    @patch(
+        "blueprints.live.session_store.get_session",
+        return_value={
+            "embedded_verifier": False,
+            "verifier_metadata_available": False,
+        },
+    )
+    def test_get_verifier_metadata_uses_destination_when_http_configured(
+        self, _session, mock_build, app_client,
+    ):
+        app_client.set_cookie(SESSION_COOKIE_NAME, "sid")
+        dest = "mongodb://dest.example:27017"
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", dest):
+            with patch(
+                "blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL",
+                "localhost:27020/api/v1/progress",
+            ):
+                r = app_client.post("/live/get_verifier_metadata")
+        assert r.status_code == 200
+        mock_build.assert_called_once_with(
+            dest, endpoint_url="localhost:27020/api/v1/progress",
+        )
+
+    @patch(
+        "blueprints.live.session_store.get_session",
+        return_value={
+            "embedded_verifier": False,
+            "verifier_metadata_available": False,
+        },
+    )
+    def test_get_verifier_metadata_destination_without_http_stays_unconfigured(
+        self, _session, app_client,
+    ):
+        app_client.set_cookie(SESSION_COOKIE_NAME, "sid")
+        with patch(
+            "blueprints.live.DESTINATION_CONNECTION_STRING",
+            "mongodb://dest.example:27017",
+        ):
+            with patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
+                r = app_client.post("/live/get_verifier_metadata")
         assert r.status_code == 400
         assert r.get_json()["error"] == "No verifier connection string is configured."
 
     @patch("blueprints.live.session_store.get_session", return_value={})
     def test_get_verifier_metadata_expired_session(self, _session, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.post("/live/get_verifier_metadata")
         assert r.status_code == 401
         assert r.get_json() == {"error": "Monitoring session expired."}
 
     @patch("blueprints.live.session_store.get_session", return_value={})
     def test_download_verifier_doc_mismatches_missing_endpoint(self, _session, app_client):
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_PROGRESS_ENDPOINT_URL", ""):
                 r = app_client.get("/live/download_verifier_doc_mismatches")
         assert r.status_code == 400
@@ -541,7 +715,7 @@ class TestVerifierRoutes:
         mock_resp = MagicMock()
         mock_resp.iter_content.return_value = [b'{"type":"content"}\n']
         mock_stream.return_value = mock_resp
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_SUMMARY_MIN_DURATION_SECS", 0):
                 r = app_client.get("/live/download_verifier_doc_mismatches")
         assert r.status_code == 200
@@ -561,7 +735,7 @@ class TestVerifierRoutes:
         mock_resp = MagicMock()
         mock_resp.iter_content.return_value = []
         mock_stream.return_value = mock_resp
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_SUMMARY_MIN_DURATION_SECS", 60):
                 app_client.get("/live/download_verifier_doc_mismatches")
         mock_stream.assert_called_once()
@@ -576,7 +750,7 @@ class TestVerifierRoutes:
         mock_resp = MagicMock()
         mock_resp.iter_content.return_value = [b'{"namespace":"db.coll"}\n']
         mock_stream.return_value = mock_resp
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             r = app_client.get("/live/download_verifier_ns_mismatches")
         assert r.status_code == 200
         assert r.mimetype == "application/x-ndjson"
@@ -593,7 +767,7 @@ class TestVerifierRoutes:
     ):
         leak = "Request failed: HTTPSConnectionPool(host='internal.example', port=443)"
         mock_stream.side_effect = ProgressFetchError(leak)
-        with patch("blueprints.live.VERIFIER_CONNECTION_STRING", ""):
+        with patch("blueprints.live.DESTINATION_CONNECTION_STRING", ""):
             with patch("blueprints.live.VERIFIER_SUMMARY_MIN_DURATION_SECS", 0):
                 r = app_client.get("/live/download_verifier_doc_mismatches")
         assert r.status_code == 502

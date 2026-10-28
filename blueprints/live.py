@@ -27,13 +27,11 @@ from lib.migration_verifier import (
 )
 from lib.session_support import SESSION_COOKIE_NAME, store_session_data
 from lib.app_config import (
-    CONNECTION_STRING,
+    DESTINATION_CONNECTION_STRING,
     PROGRESS_ENDPOINT_URL,
     REFRESH_TIME,
     SECURE_COOKIES,
     SESSION_TIMEOUT,
-    VERIFIER_CONNECTION_STRING,
-    VERIFIER_CONNECTION_STRING_CONFIGURED,
     VERIFIER_PROGRESS_ENDPOINT_URL,
     VERIFIER_PROGRESS_REFRESH_TIME,
     VERIFIER_SUMMARY_MIN_DURATION_SECS,
@@ -54,14 +52,8 @@ bp = Blueprint("live", __name__, url_prefix="/live")
 logger = logging.getLogger(__name__)
 
 def _verifier_env_configured():
-    """True only when a verifier-specific environment variable is set.
-
-    ``VERIFIER_CONNECTION_STRING`` also falls back to ``MI_CONNECTION_STRING``.
-    That fallback must not disable embedded-verifier monitoring.
-    """
-    return bool(
-        VERIFIER_PROGRESS_ENDPOINT_URL or VERIFIER_CONNECTION_STRING_CONFIGURED
-    )
+    """True when a verifier-specific HTTP progress endpoint env is set."""
+    return bool(VERIFIER_PROGRESS_ENDPOINT_URL)
 
 
 def _set_session_cookie(response, session_id):
@@ -82,7 +74,9 @@ def _live_session_context():
     session_data = session_store.get_session(session_id) or {}
 
     endpoint_url = PROGRESS_ENDPOINT_URL or session_data.get("endpoint_url")
-    connection_string = CONNECTION_STRING or session_data.get("connection_string")
+    connection_string = (
+        DESTINATION_CONNECTION_STRING or session_data.get("connection_string")
+    )
 
     embedded_verifier = session_data.get("embedded_verifier", True)
     if _verifier_env_configured():
@@ -92,9 +86,10 @@ def _live_session_context():
         VERIFIER_PROGRESS_ENDPOINT_URL or session_data.get("verifier_endpoint_url")
     )
 
-    if VERIFIER_CONNECTION_STRING:
-        verifier_connection_string = VERIFIER_CONNECTION_STRING
-    elif session_data.get("verifier_metadata_available") and connection_string:
+    standalone_http = (not embedded_verifier) and bool(verifier_endpoint_url)
+    if connection_string and (
+        session_data.get("verifier_metadata_available") or standalone_http
+    ):
         verifier_connection_string = connection_string
     else:
         verifier_connection_string = session_data.get("verifier_connection_string")
@@ -114,9 +109,24 @@ def _live_session_context():
     }
 
 
+def _has_verifier_http(ctx):
+    """True when standalone verifier HTTP progress endpoint is configured."""
+    return not ctx["embedded_verifier"] and bool(ctx.get("verifier_endpoint_url"))
+
+
 def _has_standalone_verifier(ctx):
-    """True when standalone Migration Verifier monitoring is configured."""
-    return not ctx["embedded_verifier"] and bool(ctx["verifier_endpoint_url"])
+    """True when standalone Migration Verifier monitoring is configured.
+
+    Standalone is configured when embedded verifier is unchecked and any of
+    the verifier HTTP endpoint, session verifier connection string (from a
+    probed verifier DB), or probed verifier metadata flag is present.
+    Destination CS alone does not count without probe/HTTP.
+    """
+    return not ctx["embedded_verifier"] and bool(
+        ctx.get("verifier_endpoint_url")
+        or ctx.get("verifier_connection_string")
+        or ctx.get("verifier_metadata_available")
+    )
 
 
 def _resolve_monitor_destination(ctx):
@@ -128,9 +138,10 @@ def _resolve_monitor_destination(ctx):
     has_progress = bool(ctx["endpoint_url"])
     has_connection = bool(ctx["connection_string"])
     has_verifier = _has_standalone_verifier(ctx)
+    has_verifier_http = _has_verifier_http(ctx)
     mongosync_metadata = ctx.get("mongosync_metadata_available", False)
 
-    if has_progress and has_verifier:
+    if has_progress and has_verifier_http:
         return "dashboard"
     if has_progress:
         return "migration"
@@ -150,6 +161,7 @@ def _live_nav_context(ctx, active_page):
     has_progress = bool(ctx["endpoint_url"])
     has_connection = bool(ctx["connection_string"])
     has_verifier = _has_standalone_verifier(ctx)
+    has_verifier_http = _has_verifier_http(ctx)
     mongosync_metadata = ctx.get("mongosync_metadata_available", False)
 
     if has_progress and not has_verifier:
@@ -163,7 +175,7 @@ def _live_nav_context(ctx, active_page):
 
     return {
         "active_page": active_page,
-        "show_dashboard": has_progress and has_verifier,
+        "show_dashboard": has_progress and has_verifier_http,
         "show_full_migration": has_progress or (has_connection and mongosync_metadata),
         "show_full_verifier": has_verifier,
     }
@@ -306,9 +318,11 @@ def _verifier_slice_unavailable(message):
 
 
 def _home_template_context():
-    connection_string_configured = bool(CONNECTION_STRING)
+    connection_string_configured = bool(DESTINATION_CONNECTION_STRING)
     connection_string_display = (
-        sanitize_for_display(CONNECTION_STRING) if connection_string_configured else ""
+        sanitize_for_display(DESTINATION_CONNECTION_STRING)
+        if connection_string_configured
+        else ""
     )
     verifier_env_configured = _verifier_env_configured()
     embedded_verifier_default = not verifier_env_configured
@@ -333,7 +347,7 @@ def live_home():
 @bp.route("/monitor", methods=["POST"])
 def monitor():
     target_mongo_uri = _resolve_connection_string(
-        env_string=CONNECTION_STRING,
+        env_string=DESTINATION_CONNECTION_STRING,
         form_field="connectionString",
     )
 
@@ -367,19 +381,21 @@ def monitor():
     has_verifier_input = bool(verifier_progress_url)
 
     if not has_mongosync_input and not has_verifier_input:
-        logger.error("No connection string, progress endpoint, or verifier endpoint provided")
+        logger.error(
+            "No connection string, progress endpoint, or verifier input provided"
+        )
         return render_template(
             "error.html",
             error_title="No Input Provided",
             error_message=(
                 "Please provide at least one of the following: Mongosync progress "
-                "endpoint, MongoDB connection string, or Migration Verifier progress "
-                "endpoint."
+                "endpoint, MongoDB destination connection string, or Migration "
+                "Verifier progress endpoint."
             ),
         )
 
     if not has_mongosync_input and has_verifier_input and embedded_verifier:
-        logger.error("Verifier endpoint provided without disabling embedded verifier")
+        logger.error("Verifier input provided without disabling embedded verifier")
         return render_template(
             "error.html",
             error_title="Standalone Verifier Required",
@@ -424,12 +440,17 @@ def monitor():
             return error_response
         probe_flags = _probe_connection_flags(target_mongo_uri)
 
+    if probe_flags["verifier_metadata_available"] and target_mongo_uri:
+        verifier_connection_string = target_mongo_uri
+    else:
+        verifier_connection_string = None
+
     session_data = {
         "connection_string": target_mongo_uri,
         "endpoint_url": progress_url,
         "embedded_verifier": embedded_verifier,
         "verifier_endpoint_url": verifier_progress_url,
-        "verifier_connection_string": None,
+        "verifier_connection_string": verifier_connection_string,
         "verifier_summary_cache": None,
         **probe_flags,
     }
@@ -448,7 +469,7 @@ def dashboard():
         return redirect_response
 
     migration_section_visible = bool(ctx["endpoint_url"])
-    verifier_section_visible = _has_standalone_verifier(ctx)
+    verifier_section_visible = _has_verifier_http(ctx)
     nav = _live_nav_context(ctx, "dashboard")
     progress_refresh_sec = VERIFIER_PROGRESS_REFRESH_TIME
 
@@ -547,8 +568,8 @@ def verifier():
                 error_message="Port must be an integer between 1 and 65535.",
             )
 
-    if VERIFIER_CONNECTION_STRING:
-        target_mongo_uri = VERIFIER_CONNECTION_STRING
+    if DESTINATION_CONNECTION_STRING:
+        target_mongo_uri = DESTINATION_CONNECTION_STRING
     else:
         target_mongo_uri = request.form.get("verifierConnectionString")
         if target_mongo_uri:

@@ -18,7 +18,9 @@ class TestClearConnectionCache:
             app_config._resolved_internal_db_cache["mongodb://localhost:27017"] = (
                 app_config.MI_MONGOSYNC_DB_NAME_NEW
             )
-        ib_cache._entries["mongodb://user:secret@host/"] = ib_cache.DestinationScanEntry()
+        ib_cache._entries[ib_cache._cache_key("mongodb://user:secret@host/")] = (
+            ib_cache.DestinationScanEntry()
+        )
 
         with patch.object(app_config.get_mongo_client, "cache_clear") as mock_cache_clear, patch.object(
             app_config.get_verifier_metadata_mongo_client, "cache_clear",

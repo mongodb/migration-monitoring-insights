@@ -1,5 +1,6 @@
 """In-process cache for throttled destination index-name verification scans."""
 
+import hashlib
 import threading
 import time
 from dataclasses import dataclass, field
@@ -16,6 +17,11 @@ _lock = threading.Lock()
 _entries: dict[str, DestinationScanEntry] = {}
 
 
+def _cache_key(connection_string):
+    """Non-reversible digest so credentials are never stored as dict keys."""
+    return hashlib.sha256(connection_string.encode("utf-8")).hexdigest()
+
+
 def coll_uuid_key(coll_uuid):
     """Normalize collUUID values to stable string keys."""
     if isinstance(coll_uuid, bytes):
@@ -26,10 +32,11 @@ def coll_uuid_key(coll_uuid):
 
 
 def _get_entry(connection_string):
-    entry = _entries.get(connection_string)
+    key = _cache_key(connection_string)
+    entry = _entries.get(key)
     if entry is None:
         entry = DestinationScanEntry()
-        _entries[connection_string] = entry
+        _entries[key] = entry
     return entry
 
 

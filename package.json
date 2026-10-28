@@ -1,0 +1,8 @@
+{
+  "name": "migration-monitoring-insights",
+  "private": true,
+  "description": "JS unit tests for Migration Insights monitoring UI helpers",
+  "scripts": {
+    "test:js": "node --test tests/js"
+  }
+}

@@ -63,7 +63,9 @@ class TestCreateApp:
     def test_logout_clears_index_build_destination_cache(self, app_client):
         from lib import index_build_destination_cache as ib_cache
 
-        ib_cache._entries["mongodb://user:secret@host/"] = ib_cache.DestinationScanEntry()
+        ib_cache._entries[ib_cache._cache_key("mongodb://user:secret@host/")] = (
+            ib_cache.DestinationScanEntry()
+        )
         r = app_client.post("/logout")
         assert r.status_code == 200
         assert ib_cache._entries == {}

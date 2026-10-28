@@ -15,9 +15,9 @@
 #   ./build_rhel.sh --el-major 9
 #
 # Output:
-#   dist/migration-insights-<version>-1.el.<arch>.rpm
-#   dist/migration-insights-<version>-1.el8.<arch>.rpm   (--el-major 8)
-#   dist/migration-insights-<version>-1.el9.<arch>.rpm   (--el-major 9)
+#   dist/migration-monitoring-insights-<version>-1.el.<arch>.rpm
+#   dist/migration-monitoring-insights-<version>-1.el8.<arch>.rpm   (--el-major 8)
+#   dist/migration-monitoring-insights-<version>-1.el9.<arch>.rpm   (--el-major 9)
 # =============================================================================
 set -euo pipefail
 
