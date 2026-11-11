@@ -86,7 +86,7 @@ jobs:
           ./build_macos.sh --arch arm64
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-arm64
           path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-macos-arm64
@@ -150,7 +150,7 @@ jobs:
           ./build_ubuntu.sh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ubuntu-amd64
           path: dist/migration-monitoring-insights_${{ needs.test.outputs.version }}-1.ubuntu_amd64.deb
@@ -183,7 +183,7 @@ jobs:
           ./build_amazonlinux.sh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: amazonlinux-x86_64
           path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.amzn.x86_64.rpm
@@ -216,7 +216,7 @@ jobs:
           ./build_amazonlinux.sh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: amazonlinux-aarch64
           path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.amzn.aarch64.rpm
@@ -249,7 +249,7 @@ jobs:
           ./build_rhel.sh --el-major 8
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rhel8-x86_64
           path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.el8.x86_64.rpm
@@ -282,7 +282,7 @@ jobs:
           ./build_rhel.sh --el-major 9
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rhel9-x86_64
           path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.el9.x86_64.rpm
