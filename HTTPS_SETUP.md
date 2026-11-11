@@ -199,7 +199,7 @@ sudo certbot renew --dry-run
 sudo crontab -e
 
 # Add this line (checks twice daily and renews if needed)
-0 0,12 * * * certbot renew --quiet --post-hook "systemctl restart migration-insights"
+0 0,12 * * * certbot renew --quiet --post-hook "systemctl restart migration-monitoring-insights"
 ```
 
 Or if running manually:
@@ -350,7 +350,7 @@ python3 migration_insights.py
 
 #### Step 6: Set Up Systemd Service (Optional)
 
-Create `/etc/systemd/system/migration-insights.service`:
+Create `/etc/systemd/system/migration-monitoring-insights.service`:
 
 ```ini
 [Unit]
@@ -375,9 +375,9 @@ Enable and start the service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable migration-insights
-sudo systemctl start migration-insights
-sudo systemctl status migration-insights
+sudo systemctl enable migration-monitoring-insights
+sudo systemctl start migration-monitoring-insights
+sudo systemctl status migration-monitoring-insights
 ```
 
 #### Step 7: Set Up Auto-Renewal

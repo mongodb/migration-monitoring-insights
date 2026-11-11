@@ -13,7 +13,7 @@
 #   ./build_amazonlinux.sh
 #
 # Output:
-#   dist/migration-insights-<version>-1.amzn.<arch>.rpm
+#   dist/migration-monitoring-insights-<version>-1.amzn.<arch>.rpm
 # =============================================================================
 set -euo pipefail
 

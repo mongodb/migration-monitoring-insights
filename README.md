@@ -42,7 +42,7 @@ To **configure** host, port, connection strings, refresh intervals, and other se
 ```bash
 export MI_PROGRESS_ENDPOINT_URL="localhost:27182"
 # Optional: metadata fallback — destination cluster connection string
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
 python3 migration_insights.py
 ```
 

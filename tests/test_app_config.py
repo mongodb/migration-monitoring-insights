@@ -26,6 +26,7 @@ from lib.app_config import (
     validate_config,
     validate_connection,
     validate_progress_endpoint_url,
+    warn_removed_connection_env,
     PROGRESS_API_PATH,
     VERIFIER_SUMMARY_API_PATH,
     VERIFIER_DOC_MISMATCHES_API_PATH,
@@ -675,3 +676,30 @@ class TestEndpointHostAllowlist:
             app_config, "ALLOWED_ENDPOINT_HOSTS", frozenset({"mongosync-1"})
         ):
             assert endpoint_host_allowed("mongosync-1:27182/latest/meta-data") is False
+
+
+class TestRemovedConnectionEnvWarning:
+    def test_warns_and_does_not_use_old_values(self, caplog):
+        before = app_config.DESTINATION_CONNECTION_STRING
+        env = {
+            "MI_CONNECTION_STRING": "mongodb://old-dest",
+            "MI_VERIFIER_CONNECTION_STRING": "mongodb://old-verifier",
+            "MI_DESTINATION_CONNECTION_STRING": "",
+        }
+        with patch.dict(os.environ, env, clear=False), caplog.at_level(logging.WARNING):
+            warn_removed_connection_env()
+        assert app_config.DESTINATION_CONNECTION_STRING == before
+        assert "MI_CONNECTION_STRING" in caplog.text
+        assert "MI_VERIFIER_CONNECTION_STRING" in caplog.text
+        assert "MI_DESTINATION_CONNECTION_STRING" in caplog.text
+        assert "mongodb://old-dest" not in caplog.text
+        assert "mongodb://old-verifier" not in caplog.text
+
+    def test_silent_when_destination_env_is_set(self, caplog):
+        env = {
+            "MI_CONNECTION_STRING": "mongodb://old-dest",
+            "MI_DESTINATION_CONNECTION_STRING": "mongodb://new-dest",
+        }
+        with patch.dict(os.environ, env, clear=False), caplog.at_level(logging.WARNING):
+            warn_removed_connection_env()
+        assert "no longer used" not in caplog.text

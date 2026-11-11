@@ -52,7 +52,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="migration-insights",
+    name="migration-monitoring-insights",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

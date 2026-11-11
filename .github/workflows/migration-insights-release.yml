@@ -89,39 +89,62 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-arm64
-          path: dist/migration-insights-${{ needs.test.outputs.version }}-macos-arm64
+          path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-macos-arm64
           if-no-files-found: error
 
   # Built on Ubuntu 20.04 (container) so one .deb covers 20.04 / 22.04 / 24.04.
   # Host runner is ubuntu-latest because the ubuntu-20.04 GitHub runner image is retired.
+  # Python 3.11 is built from source: Focal is EOL and deadsnakes no longer ships packages.
   build-ubuntu-amd64:
     needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: write
+    env:
+      PYTHON_VERSION: "3.11.17"
     container:
       image: ubuntu:20.04
       env:
         DEBIAN_FRONTEND: noninteractive
     steps:
+      - name: Cache Python 3.11 install
+        id: cache-python
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /usr/local
+          key: ubuntu20-python-${{ env.PYTHON_VERSION }}-v2
+
       - name: Install Python 3.11 and build prerequisites
         working-directory: /
+        shell: bash
         run: |
           apt-get update
-          apt-get install -y software-properties-common ca-certificates curl git
-          add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update
           apt-get install -y \
-            python3.11 python3.11-venv python3.11-dev \
-            ruby ruby-dev rubygems build-essential
-          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+            ca-certificates curl git \
+            build-essential \
+            libssl-dev zlib1g-dev libffi-dev libsqlite3-dev \
+            libreadline-dev libbz2-dev liblzma-dev libncurses-dev xz-utils \
+            ruby ruby-dev rubygems
+          if [[ ! -x /usr/local/bin/python3.11 ]]; then
+            curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" \
+              | tar -xz -C /tmp
+            cd "/tmp/Python-${PYTHON_VERSION}"
+            ./configure --prefix=/usr/local --enable-shared --with-ensurepip=install
+            make -j"$(nproc)"
+            make altinstall
+          fi
+          echo /usr/local/lib > /etc/ld.so.conf.d/python3.11-local.conf
+          ldconfig
+          update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
           gem install fpm --no-document
 
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Build Ubuntu amd64 package
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
         run: |
           chmod +x build_ubuntu.sh
           ./build_ubuntu.sh
@@ -130,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ubuntu-amd64
-          path: dist/migration-insights_${{ needs.test.outputs.version }}-1.ubuntu_amd64.deb
+          path: dist/migration-monitoring-insights_${{ needs.test.outputs.version }}-1.ubuntu_amd64.deb
           if-no-files-found: error
 
   build-amazonlinux-x86_64:
@@ -163,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: amazonlinux-x86_64
-          path: dist/migration-insights-${{ needs.test.outputs.version }}-1.amzn.x86_64.rpm
+          path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.amzn.x86_64.rpm
           if-no-files-found: error
 
   build-amazonlinux-aarch64:
@@ -196,7 +219,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: amazonlinux-aarch64
-          path: dist/migration-insights-${{ needs.test.outputs.version }}-1.amzn.aarch64.rpm
+          path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.amzn.aarch64.rpm
           if-no-files-found: error
 
   build-rhel8-x86_64:
@@ -229,7 +252,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rhel8-x86_64
-          path: dist/migration-insights-${{ needs.test.outputs.version }}-1.el8.x86_64.rpm
+          path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.el8.x86_64.rpm
           if-no-files-found: error
 
   build-rhel9-x86_64:
@@ -262,9 +285,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rhel9-x86_64
-          path: dist/migration-insights-${{ needs.test.outputs.version }}-1.el9.x86_64.rpm
+          path: dist/migration-monitoring-insights-${{ needs.test.outputs.version }}-1.el9.x86_64.rpm
           if-no-files-found: error
 
+  # Publish whatever platform builds succeeded. Failed builds do not block the release.
   release:
     needs:
       - test
@@ -274,6 +298,17 @@ jobs:
       - build-amazonlinux-aarch64
       - build-rhel8-x86_64
       - build-rhel9-x86_64
+    if: >-
+      always()
+      && needs.test.result == 'success'
+      && (
+        needs.build-macos-arm64.result == 'success'
+        || needs.build-ubuntu-amd64.result == 'success'
+        || needs.build-amazonlinux-x86_64.result == 'success'
+        || needs.build-amazonlinux-aarch64.result == 'success'
+        || needs.build-rhel8-x86_64.result == 'success'
+        || needs.build-rhel9-x86_64.result == 'success'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -282,7 +317,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
-      - name: Download all build artifacts
+      - name: Download available build artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
@@ -294,10 +329,56 @@ jobs:
       - name: Render release notes
         env:
           VERSION: ${{ needs.test.outputs.version }}
+          RESULT_MACOS_ARM64: ${{ needs.build-macos-arm64.result }}
+          RESULT_UBUNTU_AMD64: ${{ needs.build-ubuntu-amd64.result }}
+          RESULT_AMZN_X86_64: ${{ needs.build-amazonlinux-x86_64.result }}
+          RESULT_AMZN_AARCH64: ${{ needs.build-amazonlinux-aarch64.result }}
+          RESULT_RHEL8_X86_64: ${{ needs.build-rhel8-x86_64.result }}
+          RESULT_RHEL9_X86_64: ${{ needs.build-rhel9-x86_64.result }}
         run: |
-          sed "s/<version>/${VERSION}/g" \
-            ci/RELEASE_DOWNLOADS.md \
-            > /tmp/release-body.md
+          set -euo pipefail
+          body=/tmp/release-body.md
+          sed "s/<version>/${VERSION}/g" ci/RELEASE_DOWNLOADS.md > "${body}"
+
+          # Drop download-table rows for assets that were not produced.
+          drop_row_if_missing() {
+            local pattern="$1"
+            if ! find artifacts -type f -name "${pattern}" | grep -q .; then
+              grep -v -F "\`${pattern}\`" "${body}" > "${body}.tmp"
+              mv "${body}.tmp" "${body}"
+            fi
+          }
+
+          drop_row_if_missing "migration-monitoring-insights-${VERSION}-macos-arm64"
+          drop_row_if_missing "migration-monitoring-insights_${VERSION}-1.ubuntu_amd64.deb"
+          drop_row_if_missing "migration-monitoring-insights-${VERSION}-1.amzn.x86_64.rpm"
+          drop_row_if_missing "migration-monitoring-insights-${VERSION}-1.amzn.aarch64.rpm"
+          drop_row_if_missing "migration-monitoring-insights-${VERSION}-1.el8.x86_64.rpm"
+          drop_row_if_missing "migration-monitoring-insights-${VERSION}-1.el9.x86_64.rpm"
+
+          failed=()
+          [[ "${RESULT_MACOS_ARM64}" == "success" ]] || failed+=("macOS Apple Silicon (${RESULT_MACOS_ARM64})")
+          [[ "${RESULT_UBUNTU_AMD64}" == "success" ]] || failed+=("Ubuntu amd64 (${RESULT_UBUNTU_AMD64})")
+          [[ "${RESULT_AMZN_X86_64}" == "success" ]] || failed+=("Amazon Linux x86_64 (${RESULT_AMZN_X86_64})")
+          [[ "${RESULT_AMZN_AARCH64}" == "success" ]] || failed+=("Amazon Linux aarch64 (${RESULT_AMZN_AARCH64})")
+          [[ "${RESULT_RHEL8_X86_64}" == "success" ]] || failed+=("RHEL 8 x86_64 (${RESULT_RHEL8_X86_64})")
+          [[ "${RESULT_RHEL9_X86_64}" == "success" ]] || failed+=("RHEL 9 x86_64 (${RESULT_RHEL9_X86_64})")
+
+          if ((${#failed[@]} > 0)); then
+            {
+              echo ""
+              echo "### Missing platforms"
+              echo ""
+              echo "These platform builds did not succeed in this run; their assets are not attached:"
+              echo ""
+              for item in "${failed[@]}"; do
+                echo "- ${item}"
+              done
+            } >> "${body}"
+          fi
+
+          echo "---- release body ----"
+          cat "${body}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2

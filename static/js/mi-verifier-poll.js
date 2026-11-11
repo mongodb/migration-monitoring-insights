@@ -21,27 +21,6 @@
         return merged;
     }
 
-    function mergeDataSourceBadges(dataSourcesById, payload) {
-        if (!payload || !payload.dataSources || !payload.dataSources.badges) return;
-        payload.dataSources.badges.forEach(function (b) {
-            dataSourcesById[b.id] = b;
-        });
-    }
-
-    function buildMergedDataSources(dataSourcesById) {
-        var badges = Object.keys(dataSourcesById).map(function (id) {
-            return dataSourcesById[id];
-        });
-        if (badges.length === 0) return null;
-        var hasProgress = dataSourcesById.progress != null;
-        var hasMetadata = dataSourcesById.metadata != null;
-        var mode = 'none';
-        if (hasProgress && hasMetadata) mode = 'both';
-        else if (hasProgress) mode = 'endpoint';
-        else if (hasMetadata) mode = 'metadata';
-        return { mode: mode, badges: badges };
-    }
-
     function applySummaryFromCache(state, summaryCache) {
         state.summaryCache = summaryCache || null;
         if (!summaryCache || !summaryCache.eligible) {
@@ -111,7 +90,7 @@
         }
 
         function mergedDataSources() {
-            return buildMergedDataSources(state.dataSourcesById);
+            return global.miBuildMergedDataSources(state.dataSourcesById);
         }
 
         function updateSummarySection() {
@@ -146,8 +125,8 @@
             root.style.display = 'block';
         }
 
-        function applyDataSources(payload) {
-            mergeDataSourceBadges(state.dataSourcesById, payload);
+        function applyDataSources(payload, source) {
+            global.miMergeDataSourceBadges(state.dataSourcesById, payload, source);
         }
 
         function setSourceWarnings(source, warnings) {
@@ -225,7 +204,7 @@
                     var sourceWarnings = warningsForSource(payload.warnings);
                     if (payload.error) sourceWarnings.push(payload.error);
                     setSourceWarnings(source, sourceWarnings);
-                    applyDataSources(payload);
+                    applyDataSources(payload, source);
 
                     var display = payload.display || {};
 

@@ -39,19 +39,11 @@ mongodb://user:p%40ss%3Aword@cluster.mongodb.net/
 For production, store the connection string in an environment variable to avoid entering it through the web UI:
 
 ```bash
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
 python3 migration_insights.py
 ```
 
-The unified `/live/` setup form uses a **single shared destination connection string** for mongosync metadata and standalone verifier metadata when `__mdb_internal_migration_verifier` is found on that cluster.
-
-For **Migration Verifier** metadata on a **different** cluster than mongosync (env-only override; no separate field in the UI):
-
-```bash
-export MI_VERIFIER_CONNECTION_STRING="mongodb+srv://user:pass@verifier-cluster.mongodb.net/"
-```
-
-When `MI_VERIFIER_CONNECTION_STRING` is not set, it falls back to `MI_CONNECTION_STRING`.
+The unified `/live/` setup form uses a **single shared destination connection string** for mongosync metadata and standalone verifier metadata when `__mdb_internal_migration_verifier` is found on that cluster. `MI_DESTINATION_CONNECTION_STRING` is that URI.
 
 See [CONFIGURATION.md](CONFIGURATION.md) for all available connection-related environment variables.
 

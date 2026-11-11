@@ -1189,6 +1189,6 @@ def progress_monitor_no_config_response(connection_string=None):
             "No progress endpoint or metadata connection string is configured. "
             "Return to Migration monitoring home and provide a Mongosync progress endpoint "
             "(host and port; path /api/v1/progress is fixed) and/or a metadata connection string, "
-            "or set MI_PROGRESS_ENDPOINT_URL / MI_CONNECTION_STRING."
+            "or set MI_PROGRESS_ENDPOINT_URL / MI_DESTINATION_CONNECTION_STRING."
         ),
     }

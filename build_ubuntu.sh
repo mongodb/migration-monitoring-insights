@@ -8,16 +8,30 @@
 #
 # Prerequisites:
 #   sudo apt-get update
-#   # On 20.04: use deadsnakes for Python 3.11
-#   sudo apt-get install -y python3.11 python3.11-venv python3-pip ruby-rubygems build-essential
-#   sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+#   sudo apt-get install -y \
+#     ca-certificates curl build-essential \
+#     libssl-dev zlib1g-dev libffi-dev libsqlite3-dev \
+#     libreadline-dev libbz2-dev liblzma-dev libncurses-dev xz-utils \
+#     ruby-rubygems
+#   # On 20.04 (Focal EOL): build Python 3.11 from source (deadsnakes no longer ships packages)
+#   PYTHON_VERSION=3.11.17
+#   curl -fsSL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" \
+#     | tar -xz -C /tmp
+#   (
+#     cd "/tmp/Python-${PYTHON_VERSION}"
+#     ./configure --prefix=/usr/local --enable-shared --with-ensurepip=install
+#     make -j"$(nproc)" && sudo make altinstall
+#   )
+#   echo /usr/local/lib | sudo tee /etc/ld.so.conf.d/python3.11-local.conf
+#   sudo ldconfig
+#   sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
 #   sudo gem install fpm
 #
 # Usage:
 #   ./build_ubuntu.sh
 #
 # Output:
-#   dist/migration-insights_<version>-1.ubuntu_<arch>.deb
+#   dist/migration-monitoring-insights_<version>-1.ubuntu_<arch>.deb
 # =============================================================================
 set -euo pipefail
 

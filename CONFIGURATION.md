@@ -41,8 +41,7 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MI_CONNECTION_STRING` | _(empty)_ | MongoDB connection string (optional, can be provided via UI) |
-| `MI_VERIFIER_CONNECTION_STRING` | _(falls back to `MI_CONNECTION_STRING`)_ | MongoDB connection string for the migration verifier database. When omitted, the value of `MI_CONNECTION_STRING` is used. Set this when the verifier database lives on a different cluster. |
+| `MI_DESTINATION_CONNECTION_STRING` | _(empty)_ | Destination MongoDB connection string for mongosync and/or standalone Migration Verifier metadata (optional, can be provided via UI). |
 | `MI_MIGRATION_VERIFIER_DB_NAME` | `__mdb_internal_migration_verifier` | Standalone migration-verifier metadata database name. |
 | `MI_VERIFIER_GENERATION_LIMIT` | `5` | Maximum generations shown on the Migration Verifier dashboard (1–20). |
 | `MI_VERIFIER_FAILED_TASKS_LIMIT` | `20` | Maximum failed document tasks shown on the **Failed Tasks / Document Mismatches** card (1–100). |
@@ -134,7 +133,7 @@ Set the MongoDB connection string for metadata-only monitoring, or as metadata f
 
 ```bash
 # Optional: metadata-only monitoring, or metadata fallback when a progress endpoint is also set
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
 
 # Optional: Adjust refresh rate
 export MI_REFRESH_TIME=5
@@ -152,7 +151,7 @@ Pre-configure both the progress endpoint and connection string for comprehensive
 export MI_PROGRESS_ENDPOINT_URL="localhost:27182"
 
 # Optional: metadata fallback — destination cluster connection string
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
 
 # Optional: throttle destination index-name verification scans (metadata fallback)
 export MI_INDEX_BUILD_REFRESH_TIME=60
@@ -174,13 +173,13 @@ Enable detailed logging for troubleshooting:
 ```bash
 # Enable debug logging
 export LOG_LEVEL=DEBUG
-export MI_LOG_FILE=/var/log/migration-insights/debug.log
+export MI_LOG_FILE=/var/log/migration-monitoring-insights/debug.log
 
 # Run the application
 python3 migration_insights.py
 
 # Tail the log in another terminal
-tail -f /var/log/migration-insights/debug.log
+tail -f /var/log/migration-monitoring-insights/debug.log
 ```
 
 ### Example 5: Production Configuration with HTTPS
@@ -201,7 +200,7 @@ export MI_SECURE_COOKIES=true
 export MI_ALLOWED_ENDPOINT_HOSTS="mongosync-1.internal,10.0.0.5"
 
 # MongoDB connection (optional: metadata-only, or metadata fallback when a progress endpoint is also set)
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@production-cluster.mongodb.net/"
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@production-cluster.mongodb.net/"
 
 # Performance settings
 export MI_POOL_SIZE=20
@@ -215,17 +214,14 @@ See [HTTPS_SETUP.md](HTTPS_SETUP.md) for complete production deployment guide.
 
 ### Example 6: Migration Verifier Monitoring
 
-Pre-configure the migration-verifier progress endpoint and/or connection string:
+Pre-configure the migration-verifier progress endpoint and/or destination connection string:
 
 ```bash
 # Set migration-verifier progress endpoint (host:port or full path; /api/v1/progress is appended if omitted)
 export MI_VERIFIER_PROGRESS_ENDPOINT_URL="localhost:27020"
 
-# Optional: metadata fallback — used when MI_VERIFIER_CONNECTION_STRING is not set
-export MI_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
-
-# Optional: metadata fallback on a different cluster (falls back to MI_CONNECTION_STRING when omitted)
-export MI_VERIFIER_CONNECTION_STRING="mongodb+srv://user:pass@verifier-cluster.mongodb.net/"
+# Optional: destination cluster for verifier (and mongosync) metadata
+export MI_DESTINATION_CONNECTION_STRING="mongodb+srv://user:pass@cluster.mongodb.net/"
 
 # Optional: override migration-verifier metadata database name (default: __mdb_internal_migration_verifier)
 export MI_MIGRATION_VERIFIER_DB_NAME="__mdb_internal_migration_verifier"
@@ -250,7 +246,7 @@ export MI_VERIFIER_METADATA_TIMEOUT_MS=120000
 python3 migration_insights.py
 ```
 
-**Note**: When `MI_VERIFIER_CONNECTION_STRING` is not set, it falls back to `MI_CONNECTION_STRING`. Set it explicitly when the migration-verifier writes to a different cluster. The verifier metadata database name is not configurable via the UI; use `MI_MIGRATION_VERIFIER_DB_NAME` to override the default. Provide at least one of the progress endpoint or connection string (via env or UI).
+**Note**: The verifier metadata database name is not configurable via the UI; use `MI_MIGRATION_VERIFIER_DB_NAME` to override the default. Provide at least one of the progress endpoint or connection string (via env or UI).
 
 ---
 
@@ -271,7 +267,7 @@ sudo -E python3 migration_insights.py
 
 ### Connection String Not Working
 
-**Problem**: `MI_CONNECTION_STRING` is set but application still asks for it
+**Problem**: `MI_DESTINATION_CONNECTION_STRING` is set but application still asks for it
 
 **Solution**: 
 - Verify the connection string format: `mongodb+srv://user:pass@cluster.mongodb.net/`
@@ -286,7 +282,7 @@ sudo -E python3 migration_insights.py
 **Solution**:
 - Confirm mongosync is running and its API is reachable on the host/port you entered (default port **27182**)
 - Verify `MI_PROGRESS_ENDPOINT_URL` uses `host:port` or `host:port/api/v1/progress` (no `http://` required in env)
-- Metadata-only monitoring still works if `MI_CONNECTION_STRING` is set; leave the progress **host** empty in the UI to skip the endpoint intentionally
+- Metadata-only monitoring still works if `MI_DESTINATION_CONNECTION_STRING` is set; leave the progress **host** empty in the UI to skip the endpoint intentionally
 
 ### Verifier Metadata Connection Errors
 
@@ -294,7 +290,7 @@ sudo -E python3 migration_insights.py
 
 **Solution**:
 - The UI shows generic messages such as `Could not connect to verifier database.` — driver details are written to `insights.log` only
-- Verify `MI_VERIFIER_CONNECTION_STRING` (or `MI_CONNECTION_STRING` fallback) with `mongosh`
+- Verify `MI_DESTINATION_CONNECTION_STRING` with `mongosh`
 - Check network access, credentials, and that `MI_MIGRATION_VERIFIER_DB_NAME` exists on the cluster
 
 ### Log File Permission Denied
@@ -304,12 +300,12 @@ sudo -E python3 migration_insights.py
 **Solution**:
 ```bash
 # Use writable location
-export MI_LOG_FILE=$HOME/migration-insights.log
+export MI_LOG_FILE=$HOME/migration-monitoring-insights.log
 
 # Or create directory with proper permissions
-sudo mkdir -p /var/log/migration-insights
-sudo chown $USER:$USER /var/log/migration-insights
-export MI_LOG_FILE=/var/log/migration-insights/insights.log
+sudo mkdir -p /var/log/migration-monitoring-insights
+sudo chown $USER:$USER /var/log/migration-monitoring-insights
+export MI_LOG_FILE=/var/log/migration-monitoring-insights/insights.log
 ```
 
 ---

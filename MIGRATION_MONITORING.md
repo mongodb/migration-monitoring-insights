@@ -27,7 +27,9 @@ On submit, MI probes the destination cluster once (if a connection string is pro
 | Mongosync progress endpoint + connection string | Full Migration Monitoring | Hidden |
 | Mongosync progress endpoint + standalone verifier endpoint | Dashboard (`/live/dashboard`) | Dashboard, Full Migration, Full Verifier |
 | Mongosync progress endpoint + connection string + standalone verifier endpoint | Dashboard | Dashboard, Full Migration, Full Verifier |
+| Mongosync progress endpoint + standalone verifier metadata only (no verifier HTTP) | Full Migration Monitoring | Full Migration + Full Verifier |
 | Connection string + standalone verifier endpoint (no mongosync progress endpoint) | If mongosync internal DB exists on cluster: Full Migration Monitoring. Otherwise: Full Verifier Monitoring (`/live/verifier/view`) | Full Migration + Full Verifier only when mongosync DB exists; hidden otherwise |
+| Connection string + standalone unchecked + verifier DB found (no verifier HTTP endpoint) | If mongosync internal DB exists: Full Migration Monitoring. Otherwise: Full Verifier Monitoring | Full Migration + Full Verifier when mongosync DB exists; hidden otherwise |
 | Standalone verifier endpoint only | Full Verifier Monitoring | Hidden |
 | Connection string only | Full Migration Monitoring (metadata-only) | Hidden |
 
@@ -66,9 +68,9 @@ You can provide **one or both** of mongosync progress endpoint and connection st
 | Input | Purpose | Env variable |
 |-------|---------|--------------|
 | **Mongosync progress endpoint** | Poll mongosync's HTTP progress API (`/api/v1/progress`) | `MI_PROGRESS_ENDPOINT_URL` |
-| **MongoDB connection string** | Read mongosync internal metadata on the destination cluster (`resumeData`, `globalState`, `indexCorrection`, verifier persistence DBs). Also used for standalone verifier metadata when `__mdb_internal_migration_verifier` is found | `MI_CONNECTION_STRING` |
+| **MongoDB connection string** | Read mongosync internal metadata on the destination cluster (`resumeData`, `globalState`, `indexCorrection`, verifier persistence DBs). Also used for standalone verifier metadata when `__mdb_internal_migration_verifier` is found | `MI_DESTINATION_CONNECTION_STRING` |
 
-When environment variables are set, the matching form fields are read-only with an info message. If any verifier env is set (`MI_VERIFIER_PROGRESS_ENDPOINT_URL` or `MI_VERIFIER_CONNECTION_STRING`), the embedded verifier checkbox is unchecked and verifier fields are shown as pre-configured.
+When environment variables are set, the matching form fields are read-only with an info message. If `MI_VERIFIER_PROGRESS_ENDPOINT_URL` is set, the embedded verifier checkbox is unchecked and verifier fields are shown as pre-configured.
 
 The mongosync internal metadata database name is **auto-detected** on the destination cluster: `__mdb_internal_mongosync` (new) when present, otherwise `mongosync_reserved_for_internal_use` (legacy). This is not configurable.
 
@@ -138,7 +140,7 @@ Provide a verifier progress endpoint and/or rely on the shared connection string
 | Input | Purpose | Env variable |
 |-------|---------|--------------|
 | **Migration Verifier progress endpoint** | Poll migration-verifier's HTTP progress API (`/api/v1/progress`) for live phase, generation stats, change-stream lag, and task counts | `MI_VERIFIER_PROGRESS_ENDPOINT_URL` |
-| **MongoDB connection string** | Read verifier metadata for generation history, namespace progress, and mismatches | `MI_VERIFIER_CONNECTION_STRING` (falls back to `MI_CONNECTION_STRING`) |
+| **MongoDB connection string** | Read verifier metadata for generation history, namespace progress, and mismatches | `MI_DESTINATION_CONNECTION_STRING` |
 
 At least one must be configured to start a session.
 
