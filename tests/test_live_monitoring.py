@@ -679,3 +679,105 @@ class TestProgressMonitorNoConfig:
         resp = progress_monitor_no_config_response()
         assert "error" in resp
         assert resp["display"] is None
+
+
+class TestCommitBlockers:
+    """MIGRATION-1201: mongosync 1.23+ commitBlockers on the live monitor."""
+
+    CEA = {
+        "state": "RUNNING",
+        "info": "change event application",
+        "canCommit": False,
+        "canWrite": False,
+    }
+
+    @staticmethod
+    def _poll(mock_progress, progress, *, progress_only=False):
+        mock_progress.return_value = (progress, [])
+        result = build_live_monitor_payload(
+            endpoint_url="host:27182/api/v1/progress",
+            connection_string=None,
+            progress_only=progress_only,
+        )
+        return result["display"]["sync"]
+
+    @patch("lib.live_monitoring.fetch_progress")
+    def test_two_blockers_shown_in_order_then_cleared_when_can_commit(self, mock_progress):
+        blockers = ["mongosync_lag_too_high", "building_indexes"]
+        sync = self._poll(mock_progress, {**self.CEA, "commitBlockers": blockers})
+        assert sync["commitBlockers"] == [
+            {"raw": "mongosync_lag_too_high", "label": "Mongosync lag above 30 s"},
+            {"raw": "building_indexes", "label": "Indexes still building"},
+        ]
+
+        sync = self._poll(
+            mock_progress, {**self.CEA, "canCommit": True, "commitBlockers": blockers}
+        )
+        assert sync["commitBlockers"] is None
+
+    @patch("lib.live_monitoring.fetch_progress")
+    def test_dashboard_sync_card_includes_blockers(self, mock_progress):
+        sync = self._poll(
+            mock_progress,
+            {**self.CEA, "commitBlockers": ["verifier_source_lag_too_high"]},
+            progress_only=True,
+        )
+        assert sync["commitBlockers"] == [
+            {"raw": "verifier_source_lag_too_high", "label": "Verifier: source lag above 30 s"},
+        ]
+
+    @patch("lib.live_monitoring.fetch_progress")
+    def test_missing_field_shows_nothing(self, mock_progress):
+        sync = self._poll(mock_progress, dict(self.CEA))
+        assert sync["commitBlockers"] is None
+        by_label = {m["label"]: m for m in sync["metrics"]}
+        assert by_label["Can commit"]["value"] == "FALSE"
+
+    def test_unknown_blocker_keeps_raw_value(self):
+        card = _build_sync_card(
+            progress={**self.CEA, "commitBlockers": ["new_future_blocker"]},
+            progress_available=True,
+        )
+        assert card["commitBlockers"] == [
+            {"raw": "new_future_blocker", "label": "new_future_blocker"},
+        ]
+
+    @pytest.mark.parametrize("value", ["building_indexes", {"a": 1}, None, 3])
+    def test_non_list_field_is_ignored(self, value):
+        card = _build_sync_card(
+            progress={**self.CEA, "commitBlockers": value}, progress_available=True
+        )
+        assert card["commitBlockers"] is None
+
+    def test_non_string_and_blank_items_are_skipped(self):
+        card = _build_sync_card(
+            progress={**self.CEA, "commitBlockers": [None, 7, "", "  ", " building_indexes "]},
+            progress_available=True,
+        )
+        assert card["commitBlockers"] == [
+            {"raw": "building_indexes", "label": "Indexes still building"},
+        ]
+
+    def test_existing_payload_renders_as_before(self, sample_progress):
+        card = _build_sync_card(progress=sample_progress, progress_available=True)
+        assert card["commitBlockers"] is None
+        by_label = {m["label"]: m for m in card["metrics"]}
+        assert by_label["Can commit"]["value"] == "FALSE"
+        assert by_label["Can commit"]["badge"] == "gray"
+
+    def test_metadata_only_card_has_no_blockers(self):
+        card = _build_sync_card(metadata={"state": "RUNNING"}, progress_available=False)
+        assert card.get("commitBlockers") is None
+
+    @pytest.mark.parametrize("can_commit,value,badge", [
+        (True, "TRUE", "green"),
+        (False, "FALSE", "gray"),
+    ])
+    def test_can_commit_tile_keeps_badge_and_explains_blockers(self, can_commit, value, badge):
+        lag = {"overall": 5, "crud": None, "ddl": None, "has_breakdown": False}
+        metrics = _build_progress_metrics({"canCommit": can_commit}, lag)
+        tile = next(m for m in metrics if m["label"] == "Can commit")
+        assert tile["value"] == value
+        assert tile["badge"] == badge
+        assert "commit blockers" in tile["title"]
+        assert "30 s" in tile["title"]

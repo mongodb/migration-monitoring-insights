@@ -526,6 +526,22 @@
     margin-top: 12px;
 }
 
+/* MIGRATION-1201: commit blockers under the metric tiles. */
+.lm-commit-blockers {
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+.lm-commit-blockers-heading {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.lm-commit-blockers-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
 .lm-metric .lm-mlabel {
     font-size: 11px;
     text-transform: uppercase;

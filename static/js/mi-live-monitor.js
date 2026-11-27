@@ -403,6 +403,25 @@
         return block;
     }
 
+    // MIGRATION-1201: blockers from the latest /progress poll. Nothing is shown
+    // when the field is absent, since older mongosync versions never send it.
+    function commitBlockersBlock(sync) {
+        var items = sync.commitBlockers;
+        if (!items || items.length === 0) {
+            return null;
+        }
+        var block = el('div', 'lm-commit-blockers');
+        block.appendChild(el('div', 'lm-commit-blockers-heading', 'Commit blockers'));
+        var list = el('ul', 'lm-commit-blockers-list');
+        items.forEach(function (item) {
+            var li = el('li', null, item.label);
+            applyHoverTitle(li, 'Raw value: ' + item.raw);
+            list.appendChild(li);
+        });
+        block.appendChild(list);
+        return block;
+    }
+
     function lagBreakdownBlock(sync) {
         var breakdown = sync.lagBreakdown;
         if (!breakdown || !breakdown.show) {
@@ -476,6 +495,11 @@
             metrics.appendChild(metricTile(m));
         });
         children.push(metrics);
+
+        var blockersBlock = commitBlockersBlock(sync);
+        if (blockersBlock) {
+            children.push(blockersBlock);
+        }
 
         var lagBlock = lagBreakdownBlock(sync);
         if (lagBlock) {

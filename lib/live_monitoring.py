@@ -15,6 +15,7 @@ from .app_config import (
     endpoint_host_allowed,
     validate_api_endpoint_url,
 )
+from .commit_blockers import commit_blocker_items
 from .data_sources import STATUS_ACTIVE, STATUS_UNAVAILABLE, build_data_sources
 from .live_metadata_status import (
     MetadataFetchError,
@@ -48,6 +49,13 @@ _CEA_STAGE_TITLES = {
         "may mean the migration will not catch up."
     ),
 }
+
+_CAN_COMMIT_TITLE = (
+    "canCommit requires change event application and overall lag of 30 s or less. "
+    "When the embedded verifier is active, its source and destination lag and "
+    "stream hashing must also be ready, and no index build may be in progress. "
+    "mongosync 1.23+ lists the reasons canCommit is false as commit blockers."
+)
 
 _MIGRATION_START_TIME_TITLE = (
     "This is the time when the phase changes from uninitialized to "
@@ -397,6 +405,7 @@ def _build_progress_metrics(progress, lag_resolved):
                 "value": "TRUE" if progress.get("canCommit") else "FALSE",
                 "badge": "green" if progress.get("canCommit") else "gray",
                 "small": True,
+                "title": _CAN_COMMIT_TITLE,
             },
             {
                 "label": "Can write",
@@ -536,6 +545,8 @@ def _build_sync_card(
             "metadataMetrics": _build_metadata_metrics(metadata),
             "phaseStartTimes": _build_phase_start_times(metadata),
             "lagBreakdown": lag_breakdown,
+            # A missing field never reads as "no blockers": older mongosync omits it.
+            "commitBlockers": commit_blocker_items(progress) or None,
         }
 
     phase = _display_or_dash(metadata.get("phase") if metadata else None)
