@@ -411,7 +411,7 @@
             return null;
         }
         var block = el('div', 'lm-commit-blockers');
-        block.appendChild(el('div', 'lm-commit-blockers-heading', 'Commit blockers'));
+        block.appendChild(el('div', 'lm-commit-blockers-heading lm-aux-heading', 'Commit blockers'));
         var list = el('ul', 'lm-commit-blockers-list');
         items.forEach(function (item) {
             var li = el('li', null, item.label);
@@ -429,7 +429,7 @@
         }
 
         var block = el('div', 'lm-copied-block lm-lag-breakdown-block');
-        var toggle = el('button', 'lm-copied-toggle lm-muted');
+        var toggle = el('button', 'lm-copied-toggle lm-aux-heading');
         toggle.type = 'button';
         toggle.setAttribute('aria-expanded', lagBreakdownExpanded ? 'true' : 'false');
 
@@ -490,20 +490,24 @@
             children.push(progressBar(sync.copyPercent, sync.copyIndeterminate));
         }
 
-        var metrics = el('div', 'lm-metrics');
+        var metrics = el('div', 'lm-metrics lm-metrics-progress');
         (sync.metrics || []).forEach(function (m) {
             metrics.appendChild(metricTile(m));
         });
         children.push(metrics);
 
-        var blockersBlock = commitBlockersBlock(sync);
-        if (blockersBlock) {
-            children.push(blockersBlock);
-        }
-
+        // Lag breakdown on the left, commit blockers on the right; the CSS stacks them on narrow windows.
+        var aux = el('div', 'lm-sync-aux');
         var lagBlock = lagBreakdownBlock(sync);
         if (lagBlock) {
-            children.push(lagBlock);
+            aux.appendChild(lagBlock);
+        }
+        var blockersBlock = commitBlockersBlock(sync);
+        if (blockersBlock) {
+            aux.appendChild(blockersBlock);
+        }
+        if (aux.childNodes.length > 0) {
+            children.push(aux);
         }
 
         if (sync.metadataMetrics && sync.metadataMetrics.length > 0) {
