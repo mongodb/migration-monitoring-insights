@@ -560,13 +560,16 @@
     font-size: 13px;
 }
 
-.lm-commit-blockers-heading {
-    display: block;
-}
-
 .lm-commit-blockers-list {
     margin: 0;
     padding-left: 20px;
+}
+
+.lm-commit-blockers-note {
+    margin-top: 4px;
+    margin-bottom: 6px;
+    max-width: 60ch;
+    line-height: 1.4;
 }
 
 .lm-metric .lm-mlabel {

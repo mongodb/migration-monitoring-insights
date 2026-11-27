@@ -127,6 +127,8 @@
     var copyDetailsExpanded = false;
     var phaseStartTimesExpanded = false;
     var lagBreakdownExpanded = false;
+    var commitBlockersExpanded = false;
+    var commitBlockersToggled = false;
     var naturalOrderExpanded = false;
     var inclusionFilterExpanded = false;
     var exclusionFilterExpanded = false;
@@ -403,22 +405,66 @@
         return block;
     }
 
-    // MIGRATION-1201: blockers from the latest /progress poll. Nothing is shown
-    // when the field is absent, since older mongosync versions never send it.
+    // mongosync only sends commitBlockers during change event application, so
+    // during the collection copy phase the section explains how they work instead.
+    var COMMIT_BLOCKERS_COPY_PHASE = /collection copy/i;
+    var COMMIT_BLOCKERS_COPY_NOTE =
+        'Commit blockers explain why canCommit is still false. mongosync reports them only ' +
+        'during change event application, so none are listed while the collection copy runs. ' +
+        'Commit becomes possible once the copy finishes and mongosync reaches change event ' +
+        'application with overall lag of 30 s or less. Then each blocker shown here is one ' +
+        'condition still to clear: lag above 30 s, verifier source or destination not yet in ' +
+        'stream hashing or above 30 s of lag (when the embedded verifier is active), or index ' +
+        'builds still running. Older mongosync versions (before 1.23) do not report blockers.';
+
+    // MIGRATION-1201: blockers from the latest /progress poll, shown in a collapsible
+    // block like lag breakdown. It is also shown during the collection copy phase, with
+    // the explanation text, even though mongosync sends no blockers yet.
     function commitBlockersBlock(sync) {
-        var items = sync.commitBlockers;
-        if (!items || items.length === 0) {
+        var items = sync.commitBlockers || [];
+        var duringCopy = COMMIT_BLOCKERS_COPY_PHASE.test(sync.phase || '');
+        if (items.length === 0 && !duringCopy) {
             return null;
         }
-        var block = el('div', 'lm-commit-blockers');
-        block.appendChild(el('div', 'lm-commit-blockers-heading lm-aux-heading', 'Commit blockers'));
-        var list = el('ul', 'lm-commit-blockers-list');
-        items.forEach(function (item) {
-            var li = el('li', null, item.label);
-            applyHoverTitle(li, 'Raw value: ' + item.raw);
-            list.appendChild(li);
+
+        // Open by default during the copy phase so the explanation is visible; once the
+        // user toggles it, their choice is kept.
+        var isOpen = commitBlockersToggled ? commitBlockersExpanded : duringCopy;
+
+        var block = el('div', 'lm-copied-block lm-commit-blockers');
+        var toggle = el('button', 'lm-copied-toggle lm-aux-heading');
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+        var chevron = el('span', 'lm-copied-chevron', isOpen ? '▾' : '▸');
+        toggle.appendChild(chevron);
+        toggle.appendChild(document.createTextNode('Commit blockers'));
+
+        var details = el('div', 'lm-copied-details' + (isOpen ? ' is-open' : ''));
+        if (duringCopy) {
+            details.appendChild(el('div', 'lm-muted lm-commit-blockers-note', COMMIT_BLOCKERS_COPY_NOTE));
+        }
+        if (items.length > 0) {
+            var list = el('ul', 'lm-commit-blockers-list');
+            items.forEach(function (item) {
+                var li = el('li', null, item.label);
+                applyHoverTitle(li, 'Raw value: ' + item.raw);
+                list.appendChild(li);
+            });
+            details.appendChild(list);
+        }
+
+        toggle.addEventListener('click', function () {
+            commitBlockersToggled = true;
+            commitBlockersExpanded = !isOpen;
+            isOpen = commitBlockersExpanded;
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            chevron.textContent = isOpen ? '▾' : '▸';
+            details.classList.toggle('is-open', isOpen);
         });
-        block.appendChild(list);
+
+        block.appendChild(toggle);
+        block.appendChild(details);
         return block;
     }
 
