@@ -440,7 +440,15 @@ def _create_mongo_client(connection_string, *, timeout_ms):
 
     try:
         from pymongo.uri_parser import parse_uri
-        parsed = parse_uri(connection_string)
+        try:
+            parsed = parse_uri(connection_string)
+        except Exception as e:
+            # Parser messages can echo parts of the URI, including the password,
+            # so only the exception type may reach logs or callers.
+            raise InvalidURI(
+                f"{type(e).__name__}: check the scheme, the host list and that "
+                "the username and password are percent-encoded"
+            ) from None
 
         uri_tls_options = parsed.get('options', {})
         is_srv = connection_string.strip().lower().startswith('mongodb+srv://')

@@ -31,5 +31,8 @@ def sanitize_for_display(connection_string):
             return f"{hosts_str} (database: {escape(database)})"
         return hosts_str
     except Exception as e:
-        logger.error(f"Error sanitizing connection string for display: {e}")
+        # Parser messages can echo parts of the URI, including the password.
+        logger.error(
+            "Error sanitizing connection string for display: %s", type(e).__name__
+        )
         return "[Connection String Provided]"

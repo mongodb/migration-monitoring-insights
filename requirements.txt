@@ -12,7 +12,7 @@ blinker==1.9.0
 click==8.5.1
 
 # MongoDB Driver
-pymongo==4.19.0
+pymongo==4.20.2
 dnspython==2.9.2
 
 # Date/Time Utilities
@@ -26,4 +26,4 @@ charset-normalizer==3.5.2
 idna==3.20
 
 # TLS Certificate Bundle
-certifi==2026.10.23
+certifi==2026.11.20
