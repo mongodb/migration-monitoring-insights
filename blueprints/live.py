@@ -259,7 +259,7 @@ def _validate_connection_or_error(target_mongo_uri):
         )
     except PyMongoError as e:
         clear_connection_cache()
-        logger.error("Failed to connect: %s", e)
+        logger.error("Failed to connect: %s", type(e).__name__)
         return render_template(
             "error.html",
             error_title="Connection Failed",
@@ -270,7 +270,7 @@ def _validate_connection_or_error(target_mongo_uri):
         )
     except Exception as e:
         clear_connection_cache()
-        logger.error("Unexpected error during connection validation: %s", e)
+        logger.error("Unexpected error during connection validation: %s", type(e).__name__)
         return render_template(
             "error.html",
             error_title="Connection Error",
@@ -283,7 +283,7 @@ def _probe_connection_flags(connection_string):
     try:
         return probe_metadata_databases(connection_string)
     except Exception as e:
-        logger.warning("Metadata database probe failed: %s", e)
+        logger.warning("Metadata database probe failed: %s", type(e).__name__)
         return {
             "mongosync_metadata_available": False,
             "verifier_metadata_available": False,

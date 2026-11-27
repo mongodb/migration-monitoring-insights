@@ -484,11 +484,13 @@ def _create_mongo_client(connection_string, *, timeout_ms):
         logger.error(f"Invalid MongoDB connection string: {e}")
         raise
     except PyMongoError as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
-        raise
+        # Driver messages can echo parts of the URI, so only the type is logged
+        # and the re-raised error carries no original text.
+        logger.error("Failed to connect to MongoDB: %s", type(e).__name__)
+        raise PyMongoError(f"Connection failed ({type(e).__name__})") from None
     except Exception as e:
-        logger.error(f"Unexpected error connecting to MongoDB: {e}")
-        raise PyMongoError(f"Connection failed: {e}") from e
+        logger.error("Unexpected error connecting to MongoDB: %s", type(e).__name__)
+        raise PyMongoError(f"Connection failed ({type(e).__name__})") from None
 
 @lru_cache(maxsize=4)
 def get_mongo_client(connection_string):
@@ -591,7 +593,9 @@ def resolve_mongosync_db_name(connection_string):
         logger.info(f"Resolved internal DB name: {resolved}")
         return resolved
     except Exception as e:
-        logger.warning(f"Could not auto-detect internal DB name, using default: {e}")
+        logger.warning(
+            "Could not auto-detect internal DB name, using default: %s", type(e).__name__
+        )
         return MI_MONGOSYNC_DB_NAME
 
 def validate_connection(connection_string):

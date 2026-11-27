@@ -6,6 +6,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pymongo.errors import PyMongoError
 
 from lib import app_config
 from lib.app_config import (
@@ -500,6 +501,42 @@ class TestResolveMongosyncDbName:
             MI_MONGOSYNC_DB_NAME,
         ]
         assert resolve_mongosync_db_name("mongodb://localhost:27017") == MI_MONGOSYNC_DB_NAME
+
+
+class TestConnectionErrorsDoNotLogSecrets:
+    """Errors after URI parsing are logged and re-raised by type name only."""
+
+    SECRET = "Fak3S3cretPw"
+    URI = f"mongodb://alice:{SECRET}@host1.example.com:27017/"
+
+    def setup_method(self):
+        app_config.clear_connection_cache()
+
+    @pytest.mark.parametrize("error", [
+        PyMongoError(f"auth failed for {SECRET}"),
+        ValueError(f"bad value {SECRET}"),
+    ], ids=["pymongo_error", "generic_error"])
+    def test_create_mongo_client_logs_and_raises_type_only(self, caplog, error):
+        with patch("lib.app_config.MongoClient", side_effect=error):
+            with caplog.at_level(logging.ERROR):
+                with pytest.raises(PyMongoError) as exc_info:
+                    app_config._create_mongo_client(self.URI, timeout_ms=1000)
+        assert type(error).__name__ in caplog.text
+        assert self.SECRET not in caplog.text
+        assert self.SECRET not in str(exc_info.value)
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__ is True
+
+    @pytest.mark.parametrize("error", [
+        PyMongoError(f"auth failed for {SECRET}"),
+        ValueError(f"bad value {SECRET}"),
+    ], ids=["pymongo_error", "generic_error"])
+    def test_resolve_mongosync_db_name_logs_type_only(self, caplog, error):
+        with patch("lib.app_config.get_mongo_client", side_effect=error):
+            with caplog.at_level(logging.WARNING):
+                assert resolve_mongosync_db_name(self.URI) == MI_MONGOSYNC_DB_NAME
+        assert type(error).__name__ in caplog.text
+        assert self.SECRET not in caplog.text
 
 
 class TestProbeMetadataDatabases:

@@ -1,8 +1,9 @@
 """Tests for connection string sanitization."""
 import logging
+from unittest.mock import patch
 
 import pytest
-from pymongo.errors import InvalidURI
+from pymongo.errors import InvalidURI, PyMongoError
 
 from lib import app_config
 from lib.connection_validator import sanitize_for_display
@@ -82,4 +83,38 @@ class TestMalformedUriPasswordStaysOutOfLogs:
                 page = _validate_connection_or_error(uri)
         assert "Invalid Connection String" in page
         assert SECRET not in page
+        assert SECRET not in caplog.text
+
+    @pytest.mark.parametrize("error", [
+        PyMongoError(f"auth failed for {SECRET}"),
+        ValueError(f"bad value {SECRET}"),
+    ], ids=["pymongo_error", "generic_error"])
+    def test_live_connection_check_hides_driver_error_text(self, app_client, caplog, error):
+        from blueprints.live import _validate_connection_or_error
+
+        valid_uri = f"mongodb://alice:{SECRET}@host1.example.com:27017/"
+        app_config.clear_connection_cache()
+        with app_client.application.test_request_context():
+            with patch("lib.app_config.MongoClient", side_effect=error):
+                with caplog.at_level(logging.ERROR):
+                    page = _validate_connection_or_error(valid_uri)
+        # _create_mongo_client wraps any non-parse error in PyMongoError,
+        # so both cases reach the "Connection Failed" page.
+        assert "Connection Failed" in page
+        assert SECRET not in page
+        assert SECRET not in caplog.text
+        assert type(error).__name__ in caplog.text
+
+    def test_metadata_probe_logs_type_only(self, caplog):
+        from blueprints.live import _probe_connection_flags
+
+        error = PyMongoError(f"list_database_names failed for {SECRET}")
+        with patch("blueprints.live.probe_metadata_databases", side_effect=error):
+            with caplog.at_level(logging.WARNING):
+                flags = _probe_connection_flags(f"mongodb://alice:{SECRET}@host1/")
+        assert flags == {
+            "mongosync_metadata_available": False,
+            "verifier_metadata_available": False,
+        }
+        assert "PyMongoError" in caplog.text
         assert SECRET not in caplog.text
