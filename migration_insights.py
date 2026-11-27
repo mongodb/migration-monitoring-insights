@@ -65,6 +65,16 @@ def create_app():
             os.path.join(_base_path, "static", "img"), filename
         )
 
+    @app.route("/favicon.ico")
+    def mi_favicon_ico():
+        # Browsers such as Safari request /favicon.ico directly and ignore
+        # SVG link tags, so serve the PNG icon at this path as well.
+        return send_from_directory(
+            os.path.join(_base_path, "static", "img"),
+            "favicon.png",
+            mimetype="image/png",
+        )
+
     @app.after_request
     def add_security_headers(response):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

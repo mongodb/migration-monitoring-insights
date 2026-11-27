@@ -45,6 +45,12 @@ class TestCreateApp:
         assert r.mimetype == "image/png"
         assert r.data.startswith(b"\x89PNG\r\n\x1a\n")
 
+    def test_favicon_ico_serves_png_for_browsers_that_request_it(self, app_client):
+        r = app_client.get("/favicon.ico")
+        assert r.status_code == 200
+        assert r.mimetype == "image/png"
+        assert r.data.startswith(b"\x89PNG\r\n\x1a\n")
+
     def test_static_img_rejects_path_traversal(self, app_client):
         r = app_client.get("/static/img/..%2Fmigration_insights.py")
         assert r.status_code == 404
