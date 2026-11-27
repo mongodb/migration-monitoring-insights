@@ -59,6 +59,12 @@ def create_app():
             os.path.join(_base_path, "static", "css"), filename
         )
 
+    @app.route("/static/img/<path:filename>")
+    def mi_static_img(filename):
+        return send_from_directory(
+            os.path.join(_base_path, "static", "img"), filename
+        )
+
     @app.after_request
     def add_security_headers(response):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

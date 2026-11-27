@@ -27,6 +27,27 @@ class TestCreateApp:
         r = app_client.get("/")
         assert r.status_code == 200
         assert b"Migration monitoring setup" in r.data
+
+    def test_home_links_favicon_svg_and_png(self, app_client):
+        html = app_client.get("/").data
+        assert b'href="/static/img/favicon.svg" type="image/svg+xml"' in html
+        assert b'href="/static/img/favicon.png" type="image/png"' in html
+
+    def test_static_img_favicon_svg(self, app_client):
+        r = app_client.get("/static/img/favicon.svg")
+        assert r.status_code == 200
+        assert r.mimetype == "image/svg+xml"
+        assert b"Migration Monitoring Insights" in r.data
+
+    def test_static_img_favicon_png(self, app_client):
+        r = app_client.get("/static/img/favicon.png")
+        assert r.status_code == 200
+        assert r.mimetype == "image/png"
+        assert r.data.startswith(b"\x89PNG\r\n\x1a\n")
+
+    def test_static_img_rejects_path_traversal(self, app_client):
+        r = app_client.get("/static/img/..%2Fmigration_insights.py")
+        assert r.status_code == 404
         assert b"Open log analyzer" not in r.data
 
     def test_settings_refresh_defaults_to_mi_refresh_time(self, app_client):

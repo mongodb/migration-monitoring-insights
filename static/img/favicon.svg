@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Migration Monitoring Insights">
+  <defs>
+    <linearGradient id="stackGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00A35C"/>
+      <stop offset="100%" stop-color="#001E2B"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#00ED64"/>
+      <stop offset="55%" stop-color="#00A35C"/>
+      <stop offset="100%" stop-color="#00684A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Database / server stack -->
+  <rect x="28" y="42" width="92" height="28" rx="10" fill="url(#stackGrad)"/>
+  <rect x="28" y="82" width="92" height="28" rx="10" fill="url(#stackGrad)"/>
+  <rect x="28" y="122" width="92" height="28" rx="10" fill="url(#stackGrad)"/>
+  <circle cx="102" cy="136" r="5" fill="#FFFFFF"/>
+
+  <!-- Magnifying glass -->
+  <circle cx="128" cy="88" r="42" fill="none" stroke="url(#glassGrad)" stroke-width="16"/>
+  <rect x="152" y="138" width="18" height="48" rx="9" transform="rotate(-42 161 162)" fill="url(#glassGrad)"/>
+
+  <!-- Lens + monitoring sparkline -->
+  <circle cx="128" cy="88" r="30" fill="#FFFFFF"/>
+  <polyline
+    points="108,100 118,92 128,96 138,78 148,74"
+    fill="none"
+    stroke="#00684A"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <circle cx="108" cy="100" r="4" fill="#00684A"/>
+  <circle cx="118" cy="92" r="4" fill="#00684A"/>
+  <circle cx="128" cy="96" r="4" fill="#00684A"/>
+  <circle cx="138" cy="78" r="4" fill="#00684A"/>
+  <circle cx="148" cy="74" r="4" fill="#00684A"/>
+
+  <!-- Live indicator: the migration is being watched in real time -->
+  <circle cx="169" cy="47" r="11" fill="#FFFFFF"/>
+  <circle cx="169" cy="47" r="7.5" fill="#00ED64"/>
+</svg>
